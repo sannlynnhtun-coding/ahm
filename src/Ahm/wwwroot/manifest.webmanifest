@@ -1,0 +1,14 @@
+{
+  "name": "အမ်း (Ahm) — Smart Loyalty",
+  "short_name": "Ahm",
+  "description": "Stamp rewards and cashback for Myanmar shops.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7faf8",
+  "theme_color": "#14534c",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

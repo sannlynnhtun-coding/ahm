@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Ahm reward loop</title>
+  <rect x="2" y="2" width="96" height="96" rx="24" fill="#14534c"/>
+  <path d="M63 29H40C26 29 18 40 18 54S27 78 40 78H63C77 78 84 69 84 56V49" fill="none" stroke="#fff9ed" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="77" cy="30" r="9" fill="#eab94f"/>
+</svg>

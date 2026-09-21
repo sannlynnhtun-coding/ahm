@@ -3,11 +3,19 @@
 
 @theme {
   --font-sans: Inter, Padauk, ui-sans-serif, system-ui, sans-serif;
+  --color-brand-50: #f0f7f4;
+  --color-brand-100: #d9ebe4;
+  --color-brand-600: #1b6c60;
+  --color-brand-700: #14534c;
+  --color-brand-800: #103f3a;
+  --color-brand-900: #0d302c;
+  --color-reward: #eab94f;
 }
 
 @layer base {
-  body { @apply bg-[#FAFAFA] text-zinc-900 antialiased; }
+  body { @apply bg-[#f7faf8] text-[#20332e] antialiased; }
+  ::selection { background: #eab94f; color: #0d302c; }
   button { cursor: pointer; }
   button:disabled { cursor: not-allowed; opacity: .5; }
-  input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+  input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid #14534c; outline-offset: 2px; }
 }

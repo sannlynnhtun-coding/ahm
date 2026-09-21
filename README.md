@@ -15,6 +15,10 @@ dotnet run --project src/Ahm/Ahm.csproj
 
 The local `dotnet run` server serves the UI but does not host `/api/sheets`. For end-to-end use, run `vercel dev` after linking the project, or use a deployed Vercel URL.
 
+## Brand assets
+
+The final logo is [`src/Ahm/wwwroot/logo.svg`](src/Ahm/wwwroot/logo.svg). Favicon, touch, app, and social preview PNGs are generated from the same mark with `pwsh -File scripts/generate-logo-icons.ps1` on Windows. The original generated concept is in [`assets/ahm-logo-source.png`](assets/ahm-logo-source.png). Brand colors are defined in [`src/Ahm/Styles/app.css`](src/Ahm/Styles/app.css).
+
 ## Set up a shop
 
 The deployed `/setup` page walks shop owners through these steps and provides a **Copy Apps Script code** button and direct links to Google Sheets and Google's help pages.
