@@ -39,6 +39,7 @@ public sealed class ShopReward
     public string Type { get; set; } = "CASHBACK";
     public int Value { get; set; }
     public int MaxDiscount { get; set; }
+    public int? StockQuantity { get; set; }
     public string Description { get; set; } = "";
     public bool Active { get; set; } = true;
 }

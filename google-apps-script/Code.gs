@@ -7,8 +7,8 @@ const REWARD_TAB = 'Reward_Catalog';
 const CLAIM_TAB = 'Member_Rewards';
 const MEMBER_HEADERS = ['Phone_Number', 'Customer_Name', 'Current_Stamps', 'Available_Cashback', 'Lifetime_Cashback', 'Last_Visit', 'Member_Token', 'Spend_Remainder', 'Reward_Credits', 'Last_Claim_Request_ID'];
 const LOG_HEADERS = ['Log_ID', 'Phone_Number', 'Action', 'Delta_Amount', 'Note', 'Timestamp', 'Request_ID'];
-const REWARD_HEADERS = ['Reward_ID', 'Name', 'Type', 'Value', 'Max_Discount', 'Description', 'Active'];
-const CLAIM_HEADERS = ['Claim_ID', 'Phone_Number', 'Reward_ID', 'Name', 'Type', 'Value', 'Max_Discount', 'Status', 'Selected_At', 'Redeemed_At', 'Request_ID'];
+const REWARD_HEADERS = ['Reward_ID', 'Name', 'Type', 'Value', 'Max_Discount', 'Description', 'Active', 'Stock_Quantity', 'Last_Stock_Claim_ID'];
+const CLAIM_HEADERS = ['Claim_ID', 'Phone_Number', 'Reward_ID', 'Name', 'Type', 'Value', 'Max_Discount', 'Status', 'Selected_At', 'Redeemed_At', 'Request_ID', 'Stock_Limited'];
 const DEFAULT_POLICY = { minSpendPerStamp: 10000, maxStamps: 10, cashbackReward: 10000, minWithdrawal: 1000, allowRollover: true };
 const SCHEMA_VERSION = 2;
 
@@ -44,7 +44,9 @@ function dispatch_(request) {
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(20000)) throw new Error('Sheet is busy. Try again.');
     try {
-      const result = claimReward_(sheets_(true), request);
+      const sheets = sheets_(true);
+      finishPreparingClaims_(sheets);
+      const result = claimReward_(sheets, request);
       SpreadsheetApp.flush();
       return result;
     } finally { lock.releaseLock(); }
@@ -56,6 +58,7 @@ function dispatch_(request) {
   if (!lock.tryLock(20000)) throw new Error('Sheet is busy. Try again.');
   try {
     const sheets = sheets_(true);
+    if (request.action === 'configure') finishPreparingClaims_(sheets);
     const result = handle_(sheets, request);
     SpreadsheetApp.flush();
     return result;
@@ -89,6 +92,11 @@ function sheets_(create) {
     for (let column = 8; column <= MEMBER_HEADERS.length; column++)
       if (found[0].getRange(1, column).getValue() !== MEMBER_HEADERS[column - 1])
         found[0].getRange(1, column).setValue(MEMBER_HEADERS[column - 1]);
+    for (let column = 8; column <= REWARD_HEADERS.length; column++)
+      if (found[3].getRange(1, column).getValue() !== REWARD_HEADERS[column - 1])
+        found[3].getRange(1, column).setValue(REWARD_HEADERS[column - 1]);
+    if (found[4].getRange(1, 12).getValue() !== CLAIM_HEADERS[11])
+      found[4].getRange(1, 12).setValue(CLAIM_HEADERS[11]);
   }
   return { members: found[0], logs: found[1], config: found[2], rewards: found[3], claims: found[4] };
 }
@@ -190,9 +198,9 @@ function handle_(sheets, request) {
 
 function rewards_(sheet, activeOnly) {
   if (!sheet || sheet.getLastRow() < 2) return [];
-  return sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues()
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues()
     .filter(v => v[0] && (!activeOnly || v[6] === true || v[6] === 'true'))
-    .map(v => ({ id: String(v[0]), name: String(v[1]), type: String(v[2]), value: Number(v[3] || 0), maxDiscount: Number(v[4] || 0), description: String(v[5] || ''), active: v[6] === true || v[6] === 'true' }));
+    .map(v => ({ id: String(v[0]), name: String(v[1]), type: String(v[2]), value: Number(v[3] || 0), maxDiscount: Number(v[4] || 0), description: String(v[5] || ''), active: v[6] === true || v[6] === 'true', stockQuantity: v[7] === '' || v[7] == null ? null : Number(v[7]) }));
 }
 
 function saveRewards_(sheet, rewards) {
@@ -203,19 +211,23 @@ function saveRewards_(sheet, rewards) {
     const type = String(reward.type || '');
     const value = Number(reward.value || 0);
     const maxDiscount = Number(reward.maxDiscount || 0);
+    const stock = reward.stockQuantity === '' || reward.stockQuantity == null ? '' : Number(reward.stockQuantity);
     if (!name || name.length > 100 || !['CASHBACK', 'PERCENT_DISCOUNT', 'FREE_ITEM'].includes(type)) throw new Error('Invalid reward name or type.');
     if (type === 'CASHBACK' && (!Number.isSafeInteger(value) || value < 1 || value > 2147483647)) throw new Error('Cashback must be a positive amount.');
     if (type === 'PERCENT_DISCOUNT' && (!Number.isSafeInteger(value) || value < 1 || value > 100 || !Number.isSafeInteger(maxDiscount) || maxDiscount < 1 || maxDiscount > 2147483647)) throw new Error('Discount needs a percentage and maximum amount.');
+    if (stock !== '' && (!Number.isSafeInteger(stock) || stock < 0 || stock > 2147483647)) throw new Error('Stock must be zero or a positive whole number.');
     const id = String(reward.id || Utilities.getUuid());
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('Invalid reward ID.');
     if (seen[id]) throw new Error('Duplicate reward ID.');
     seen[id] = true;
-    const values = [id, name, type, type === 'FREE_ITEM' ? 0 : value, type === 'PERCENT_DISCOUNT' ? maxDiscount : 0, String(reward.description || '').slice(0, 300), reward.active !== false];
+    const row = findRow_(sheet, 1, id);
+    const lastStockClaimId = row ? String(sheet.getRange(row, 9).getValue() || '') : '';
+    const values = [id, name, type, type === 'FREE_ITEM' ? 0 : value, type === 'PERCENT_DISCOUNT' ? maxDiscount : 0, String(reward.description || '').slice(0, 300), reward.active !== false, stock, lastStockClaimId];
     return values;
   });
   prepared.forEach(values => {
     const row = findRow_(sheet, 1, values[0]);
-    if (row) sheet.getRange(row, 1, 1, 7).setValues([values]);
+    if (row) sheet.getRange(row, 1, 1, 9).setValues([values]);
     else sheet.appendRow(values);
   });
   for (let row = 2; row <= sheet.getLastRow(); row++) {
@@ -238,33 +250,53 @@ function claimReward_(sheets, request) {
   const requestId = String(request.requestId || '');
   if (!/^[a-f0-9]{32}$/i.test(requestId)) throw new Error('A valid request ID is required.');
   const phone = String(sheets.members.getRange(row, 1).getValue());
-  for (let claimRow = 2; claimRow <= sheets.claims.getLastRow(); claimRow++) {
-    const claim = sheets.claims.getRange(claimRow, 1, 1, 11).getValues()[0];
-    if (String(claim[1]) === phone && String(claim[7]) === 'Preparing') finishClaim_(sheets, row, claimRow);
-  }
   const existing = findRow_(sheets.claims, 11, requestId);
   if (existing) {
-    const claim = sheets.claims.getRange(existing, 1, 1, 11).getValues()[0];
+    const claim = sheets.claims.getRange(existing, 1, 1, 12).getValues()[0];
     if (String(claim[1]) !== phone || String(claim[2]) !== String(request.rewardId || '')) throw new Error('Request ID belongs to another reward selection.');
   }
   if (!existing) {
     const reward = rewards_(sheets.rewards, true).find(r => r.id === String(request.rewardId || ''));
     if (!reward) throw new Error('Reward is no longer available.');
+    if (reward.stockQuantity !== null && (!Number.isSafeInteger(reward.stockQuantity) || reward.stockQuantity < 1)) throw new Error('Reward is sold out.');
     const values = sheets.members.getRange(row, 1, 1, 10).getValues()[0];
     if (Number(values[8] || 0) < 1) throw new Error('No reward choices available.');
     const now = new Date();
     const claimId = Utilities.getUuid();
-    sheets.claims.appendRow([claimId, phone, reward.id, reward.name, reward.type, reward.value, reward.maxDiscount, 'Preparing', now, '', requestId]);
+    sheets.claims.appendRow([claimId, phone, reward.id, reward.name, reward.type, reward.value, reward.maxDiscount, 'Preparing', now, '', requestId, reward.stockQuantity !== null]);
     finishClaim_(sheets, row, sheets.claims.getLastRow());
   }
   return { ok: true, member: member_(sheets, row), policy: policy_(sheets.config), rewards: rewards_(sheets.rewards, true), shopName: configValue_(sheets.config, 'shopName') || '' };
 }
 
+function finishPreparingClaims_(sheets) {
+  if (!sheets.claims || sheets.claims.getLastRow() < 2) return;
+  for (let claimRow = 2; claimRow <= sheets.claims.getLastRow(); claimRow++) {
+    const claim = sheets.claims.getRange(claimRow, 1, 1, 12).getValues()[0];
+    if (String(claim[7]) !== 'Preparing') continue;
+    const memberRow = findRow_(sheets.members, 1, String(claim[1]));
+    if (!memberRow) throw new Error('Member for pending reward was not found.');
+    finishClaim_(sheets, memberRow, claimRow);
+  }
+}
+
 function finishClaim_(sheets, memberRow, claimRow) {
-  const claim = sheets.claims.getRange(claimRow, 1, 1, 11).getValues()[0];
+  const claim = sheets.claims.getRange(claimRow, 1, 1, 12).getValues()[0];
   if (claim[7] !== 'Preparing') return;
   const values = sheets.members.getRange(memberRow, 1, 1, 10).getValues()[0];
   const requestId = String(claim[10]);
+  if (claim[11] === true || claim[11] === 'true') {
+    const rewardRow = findRow_(sheets.rewards, 1, String(claim[2]));
+    if (!rewardRow) throw new Error('Reward stock record was not found.');
+    const reward = sheets.rewards.getRange(rewardRow, 1, 1, 9).getValues()[0];
+    if (String(reward[8] || '') !== requestId) {
+      const stock = Number(reward[7]);
+      if (!Number.isSafeInteger(stock) || stock < 1) throw new Error('Reward is sold out.');
+      reward[7] = stock - 1;
+      reward[8] = requestId;
+      sheets.rewards.getRange(rewardRow, 1, 1, 9).setValues([reward]);
+    }
+  }
   if (String(values[9] || '') !== requestId) {
     if (Number(values[8] || 0) < 1) throw new Error('No reward choices available.');
     values[8] = Number(values[8]) - 1;
@@ -278,7 +310,7 @@ function finishClaim_(sheets, memberRow, claimRow) {
   if (!findRow_(sheets.logs, 7, requestId))
     log_(sheets.logs, String(claim[1]), 'REWARD_SELECTED', claim[4] === 'CASHBACK' ? Number(claim[5]) : 0, String(claim[3]), claim[8], requestId);
   claim[7] = claim[4] === 'CASHBACK' ? 'Applied' : 'Pending';
-  sheets.claims.getRange(claimRow, 1, 1, 11).setValues([claim]);
+  sheets.claims.getRange(claimRow, 1, 1, 12).setValues([claim]);
 }
 
 function normalizePhone_(value) {

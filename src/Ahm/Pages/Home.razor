@@ -74,8 +74,9 @@ else if (page == "setup")
                         {
                             <label class="block text-xs">Maximum discount (MMK)<input type="number" min="1" @bind="reward.MaxDiscount" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
                         }
+                        <label class="block text-xs">Stock quantity (leave blank for unlimited)<input type="number" min="0" @bind="reward.StockQuantity" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
                         <label class="block text-xs">Description<input maxlength="300" @bind="reward.Description" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm" /></label>
-                        <label class="flex items-center gap-2 text-xs"><input type="checkbox" @bind="reward.Active" /> Available to customers</label>
+                        <label class="flex items-center gap-2 text-xs"><input type="checkbox" @bind="reward.Active" /> Enabled for customers</label>
                     </div>
                 }
             </div>
@@ -137,9 +138,13 @@ else
             @if (member.RewardCredits > 0 && page == "member")
             {
                 <section class="space-y-3 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-sm font-semibold">Choose your reward</h2><p class="text-xs text-zinc-500">You have @member.RewardCredits choice(s). Choose one reward for each completed card.</p>
+                    @if (!setup.Rewards.Any(r => r.Active && r.StockQuantity != 0))
+                    {
+                        <p class="text-xs text-zinc-500">No reward is available right now. Your choice stays on this card until the shop adds stock or enables a reward.</p>
+                    }
                     @foreach (var reward in setup.Rewards.Where(r => r.Active))
                     {
-                        <div class="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3"><div><p class="text-sm font-medium">@reward.Name</p><p class="text-xs text-zinc-500">@RewardLabel(reward)</p><p class="text-xs text-zinc-400">@reward.Description</p></div><button type="button" disabled="@busy" @onclick="() => SelectReward(reward)" class="rounded-lg bg-brand-700 px-3 py-2 text-xs text-white">Choose</button></div>
+                        <div class="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3"><div><p class="text-sm font-medium">@reward.Name</p><p class="text-xs text-zinc-500">@RewardLabel(reward)</p><p class="text-xs text-zinc-400">@(reward.StockQuantity == 0 ? "Sold out" : reward.StockQuantity is null ? reward.Description : $"{reward.StockQuantity} left · {reward.Description}")</p></div><button type="button" disabled="@(busy || reward.StockQuantity == 0)" @onclick="() => SelectReward(reward)" class="rounded-lg bg-brand-700 px-3 py-2 text-xs text-white">@(reward.StockQuantity == 0 ? "Sold out" : "Choose")</button></div>
                     }
                 </section>
             }

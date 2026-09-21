@@ -112,7 +112,7 @@ test('spend remainder, reward choices, redemption and idempotency', () => {
   beforeRecovery[4] += 5000;
   beforeRecovery[9] = recoveringId;
   sheets.members.getRange(2, 1, 1, 10).setValues([beforeRecovery]);
-  result = context.claimReward_(sheets, { token, rewardId: cashbackId, requestId: recoveringId });
+  result = context.dispatch_({ action: 'claim', token, rewardId: cashbackId, requestId: recoveringId });
   assert.equal(result.member.availableCashback, 7000);
   assert.equal(result.member.rewardCredits, 0);
   assert.equal(result.member.claims.at(-1).status, 'Applied');
@@ -121,6 +121,8 @@ test('spend remainder, reward choices, redemption and idempotency', () => {
   assert.equal(context.dispatch_({ action: 'member', token: '7ff2d90b-9778-43d4-a0a8-0069435b7c0c' }).member.name, 'Ko Zaw');
   assert.equal(sheets.members.rows[0][7], 'Spend_Remainder');
   assert.equal(sheets.members.rows[0][9], 'Last_Claim_Request_ID');
+  assert.equal(sheets.rewards.rows[0][7], 'Stock_Quantity');
+  assert.equal(sheets.claims.rows[0][11], 'Stock_Limited');
 
   handle({ action: 'enroll', phone: '09798123457', name: 'Ma Su' });
   result = handle({ action: 'stamp', phone: '09798123457', spend: 12000, requestId: '9'.repeat(32) });
@@ -134,4 +136,36 @@ test('spend remainder, reward choices, redemption and idempotency', () => {
   result = handle({ action: 'stamp', phone: '09798123457', spend: 1000, requestId: '0'.repeat(32) });
   assert.equal(result.member.stamps, 2);
   assert.equal(result.member.spendRemainder, 0);
+
+  const policy = { minSpendPerStamp: 3000, maxStamps: 3, cashbackReward: 5000, minWithdrawal: 1000, allowRollover: true };
+  const catalog = (stockQuantity, active = true) => [
+    { id: cashbackId, name: 'Cashback', type: 'CASHBACK', value: 5000, active: true },
+    { id: freeId, name: 'Coffee', type: 'FREE_ITEM', stockQuantity, active }
+  ];
+  handle({ action: 'configure', shopName: 'Test Shop', policy, rewards: catalog(1) });
+  const firstBuyer = handle({ action: 'enroll', phone: '09798123458', name: 'First buyer' }).member;
+  handle({ action: 'stamp', phone: firstBuyer.phone, spend: 9000, requestId: 'ab'.repeat(16) });
+  result = context.dispatch_({ action: 'claim', token: firstBuyer.token, rewardId: freeId, requestId: 'bc'.repeat(16) });
+  assert.equal(result.rewards.find(reward => reward.id === freeId).stockQuantity, 0);
+  result = context.dispatch_({ action: 'claim', token: firstBuyer.token, rewardId: freeId, requestId: 'bc'.repeat(16) });
+  assert.equal(result.rewards.find(reward => reward.id === freeId).stockQuantity, 0);
+  const secondBuyer = handle({ action: 'enroll', phone: '09798123459', name: 'Second buyer' }).member;
+  handle({ action: 'stamp', phone: secondBuyer.phone, spend: 9000, requestId: 'cd'.repeat(16) });
+  assert.throws(() => context.dispatch_({ action: 'claim', token: secondBuyer.token, rewardId: freeId, requestId: 'de'.repeat(16) }), /sold out/);
+  handle({ action: 'configure', shopName: 'Test Shop', policy, rewards: catalog(0, false) });
+  assert.throws(() => context.dispatch_({ action: 'claim', token: secondBuyer.token, rewardId: freeId, requestId: 'de'.repeat(16) }), /no longer available/);
+  handle({ action: 'configure', shopName: 'Test Shop', policy, rewards: catalog(2) });
+  result = context.dispatch_({ action: 'claim', token: secondBuyer.token, rewardId: freeId, requestId: 'de'.repeat(16) });
+  assert.equal(result.rewards.find(reward => reward.id === freeId).stockQuantity, 1);
+
+  const thirdBuyer = handle({ action: 'enroll', phone: '09798123460', name: 'Third buyer' }).member;
+  handle({ action: 'stamp', phone: thirdBuyer.phone, spend: 9000, requestId: 'ef'.repeat(16) });
+  const pendingId = 'ac'.repeat(16);
+  const rewardRow = context.findRow_(sheets.rewards, 1, freeId);
+  sheets.claims.appendRow(['7ff2d90b-9778-43d4-a0a8-0069435b7caa', thirdBuyer.phone, freeId, 'Coffee', 'FREE_ITEM', 0, 0, 'Preparing', new Date(), '', pendingId, true]);
+  sheets.rewards.getRange(rewardRow, 8, 1, 2).setValues([[0, pendingId]]);
+  result = context.dispatch_({ action: 'claim', token: thirdBuyer.token, rewardId: freeId, requestId: pendingId });
+  assert.equal(result.rewards.find(reward => reward.id === freeId).stockQuantity, 0);
+  assert.equal(result.member.rewardCredits, 0);
+  assert.equal(result.member.claims.at(-1).status, 'Pending');
 });

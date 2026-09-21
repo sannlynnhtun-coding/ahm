@@ -114,7 +114,7 @@ public partial class Home : IDisposable
         });
     }
 
-    private void AddReward() => setup.Rewards.Add(new ShopReward { Name = "New reward", Type = "FREE_ITEM" });
+    private void AddReward() => setup.Rewards.Add(new ShopReward { Name = "New reward", Type = "FREE_ITEM", StockQuantity = 0 });
     private void RemoveReward(ShopReward reward)
     {
         if (string.IsNullOrEmpty(reward.Id)) setup.Rewards.Remove(reward);
@@ -173,7 +173,7 @@ public partial class Home : IDisposable
 
     private async Task SelectReward(ShopReward reward)
     {
-        if (member is null || member.RewardCredits < 1 || busy || memberCode.Length == 0) return;
+        if (member is null || member.RewardCredits < 1 || reward.StockQuantity == 0 || busy || memberCode.Length == 0) return;
         if (pendingRewardId.Length > 0 && pendingRewardId != reward.Id) { message = "Refresh the card before choosing a different reward."; return; }
         pendingRewardId = reward.Id;
         if (pendingClaimRequestId.Length == 0) pendingClaimRequestId = Guid.NewGuid().ToString("N");
