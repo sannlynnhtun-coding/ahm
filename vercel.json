@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "bash scripts/vercel-build.sh",
+  "outputDirectory": "dist",
+  "headers": [
+    { "source": "/member", "headers": [
+      { "key": "Referrer-Policy", "value": "no-referrer" },
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+    ] }
+  ],
+  "rewrites": [
+    { "source": "/setup", "destination": "/index.html" },
+    { "source": "/cashier", "destination": "/index.html" },
+    { "source": "/member", "destination": "/index.html" }
+  ]
+}

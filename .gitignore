@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+node_modules/
+dist/
+dist-publish/
+.vercel/
+.dotnet/
+src/Ahm/wwwroot/css/app.css
+src/Ahm/wwwroot/js/qr-code.mjs
+src/Ahm/wwwroot/setup/Ahm-Code.gs.txt
+*.user
+
+.vercel

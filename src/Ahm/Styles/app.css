@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@source "../**/*.razor";
+
+@theme {
+  --font-sans: Inter, Padauk, ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body { @apply bg-[#FAFAFA] text-zinc-900 antialiased; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+}
