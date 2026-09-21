@@ -15,7 +15,16 @@ public sealed class SheetApi(HttpClient http)
         if (result is null) throw new InvalidOperationException("Empty response from the sheet service.");
         if (!response.IsSuccessStatusCode || !result.Ok)
             throw new InvalidOperationException(result.Error ?? "The sheet request failed.");
+        if (result.SchemaVersion < 2)
+            throw new InvalidOperationException("Update the shop's Apps Script to the latest Ahm code and redeploy it before continuing.");
         return result;
+    }
+
+    public async Task CheckVersionAsync(string url)
+    {
+        try { await SendAsync(new SheetRequest { Url = url, Action = "version" }); }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Invalid cashier PIN", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Unknown action", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Update the shop's Apps Script", StringComparison.OrdinalIgnoreCase))
+        { throw new InvalidOperationException("Update the shop's Apps Script to the latest Ahm code and redeploy it before continuing."); }
     }
 
     public async Task<string> CreateMemberLinkAsync(string url, string token)
@@ -31,10 +40,20 @@ public sealed class SheetApi(HttpClient http)
         return await ReadMemberResponseAsync(response);
     }
 
+    public async Task<SheetResult> ClaimRewardAsync(string code, string rewardId, string requestId)
+    {
+        using var response = await http.PostAsJsonAsync("api/member", new { action = "claim", code, rewardId, requestId }, Json);
+        var result = await ReadMemberResponseAsync(response);
+        if (result.SchemaVersion < 2) throw new InvalidOperationException("This shop must update its Apps Script before rewards can be selected.");
+        return result;
+    }
+
     public async Task<SheetResult> FindMemberByCodeAsync(string code, string url, string pin)
     {
         using var response = await http.PostAsJsonAsync("api/member", new { code, url, pin }, Json);
-        return await ReadMemberResponseAsync(response);
+        var result = await ReadMemberResponseAsync(response);
+        if (result.SchemaVersion < 2) throw new InvalidOperationException("Update the shop's Apps Script to the latest Ahm code and redeploy it before continuing.");
+        return result;
     }
 
     private static async Task<SheetResult> ReadMemberResponseAsync(HttpResponseMessage response)

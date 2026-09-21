@@ -1,4 +1,4 @@
-const allowedActions = new Set(['configure', 'find', 'enroll', 'stamp', 'withdraw', 'member']);
+const allowedActions = new Set(['version', 'configure', 'find', 'enroll', 'stamp', 'withdraw', 'redeem', 'member']);
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');

@@ -49,15 +49,35 @@ else if (page == "setup")
             <div class="space-y-1.5"><label for="shopName" class="block text-xs font-medium">ဆိုင်အမည် (Shop Name)</label><input id="shopName" required maxlength="100" @bind="setup.ShopName" placeholder="ဥပမာ - Shwe Tea House" class="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-sm" /></div>
             <div class="space-y-1.5"><label for="gasUrl" class="block text-xs font-medium">Google Apps Script Web App URL</label><input id="gasUrl" required type="url" @bind="setup.GasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 font-mono text-xs" /><p class="text-[11px] text-zinc-400">Use the deployed /exec URL from your own Sheet's script.</p></div>
             <div class="space-y-1.5"><label for="setupPin" class="block text-xs font-medium">Cashier PIN</label><input id="setupPin" required type="password" autocomplete="off" @bind="pin" placeholder="PIN set in Apps Script properties" class="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-sm" /><p class="text-[11px] text-zinc-400">Used for this browser session only. The PIN is not saved in IndexedDB.</p></div>
+            <button type="button" disabled="@busy" @onclick="RefreshSettings" class="text-xs font-medium underline">Load latest settings from Sheet</button>
             <div class="border-t border-zinc-100 pt-4">
-                <h2 class="mb-4 text-xs font-semibold">Auto Reward &amp; Policy Settings (မူဝါဒ သတ်မှတ်ချက်များ)</h2>
+                <h2 class="mb-4 text-xs font-semibold">Stamp &amp; Reward Settings (မူဝါဒ သတ်မှတ်ချက်များ)</h2>
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="space-y-1"><label for="minSpend" class="text-[11px] text-zinc-500">Min Spend / Stamp (MMK)</label><input id="minSpend" required type="number" min="1" @bind="setup.Policy.MinSpendPerStamp" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
+                    <div class="space-y-1"><label for="minSpend" class="text-[11px] text-zinc-500">Spend per Stamp (MMK)</label><input id="minSpend" required type="number" min="1" @bind="setup.Policy.MinSpendPerStamp" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
                     <div class="space-y-1"><label for="maxStamps" class="text-[11px] text-zinc-500">Target Stamps</label><input id="maxStamps" required type="number" min="1" max="30" @bind="setup.Policy.MaxStamps" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
-                    <div class="space-y-1"><label for="reward" class="text-[11px] text-zinc-500">Cashback Reward (MMK)</label><input id="reward" required type="number" min="1" @bind="setup.Policy.CashbackReward" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
                     <div class="space-y-1"><label for="minWithdrawal" class="text-[11px] text-zinc-500">Min Withdrawal (MMK)</label><input id="minWithdrawal" required type="number" min="1" @bind="setup.Policy.MinWithdrawal" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
                 </div>
-                <label class="mt-4 flex items-center gap-2.5 text-xs text-zinc-600"><input type="checkbox" @bind="setup.Policy.AllowRollover" class="h-4 w-4 accent-black" /> ပိုလျှံသော Stamp များကို နောက်ကတ်သို့ Rollover ကူးပြောင်းခွင့်ပြုမည်</label>
+                <p class="mt-3 text-xs text-zinc-500">Bill တစ်ခုမှ stamp အများအပြားရနိုင်ပြီး ပိုသောငွေကို နောက်ဝယ်ယူမှုအတွက် ဆက်စုထားမည်။ သတ်မှတ်ချက်အသစ်သည် နောက်ဝယ်ယူမှုမှစ၍ ရှိပြီးသား stamp များနှင့်လည်း သက်ဆိုင်မည်။</p>
+            </div>
+            <div class="space-y-3 border-t border-zinc-100 pt-4">
+                <div class="flex items-center justify-between"><h2 class="text-xs font-semibold">Reward Catalog</h2><button type="button" @onclick="AddReward" class="text-xs font-medium underline">+ Add reward</button></div>
+                @foreach (var reward in setup.Rewards)
+                {
+                    <div @key="reward" class="space-y-3 rounded-xl border border-zinc-200 p-4">
+                        <div class="flex items-center justify-between"><label class="text-xs font-medium">Reward name <input required maxlength="100" @bind="reward.Name" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm" /></label><button type="button" @onclick="() => RemoveReward(reward)" class="text-xs text-red-700">@(string.IsNullOrEmpty(reward.Id) ? "Remove" : "Archive")</button></div>
+                        <select @bind="reward.Type" class="h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm"><option value="CASHBACK">Cashback</option><option value="PERCENT_DISCOUNT">Percentage discount</option><option value="FREE_ITEM">Free item</option></select>
+                        @if (reward.Type != "FREE_ITEM")
+                        {
+                            <label class="block text-xs">@(reward.Type == "CASHBACK" ? "Cashback (MMK)" : "Discount (%)")<input type="number" min="1" max="@(reward.Type == "PERCENT_DISCOUNT" ? "100" : null)" @bind="reward.Value" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
+                        }
+                        @if (reward.Type == "PERCENT_DISCOUNT")
+                        {
+                            <label class="block text-xs">Maximum discount (MMK)<input type="number" min="1" @bind="reward.MaxDiscount" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
+                        }
+                        <label class="block text-xs">Description<input maxlength="300" @bind="reward.Description" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm" /></label>
+                        <label class="flex items-center gap-2 text-xs"><input type="checkbox" @bind="reward.Active" /> Available to customers</label>
+                    </div>
+                }
             </div>
             <button disabled="@busy" type="submit" class="h-11 w-full rounded-xl bg-brand-700 px-4 text-xs font-medium text-white hover:bg-brand-800">@(busy ? "Connecting…" : "Save to IndexedDB & Initialize")</button>
         </form>
@@ -70,6 +90,7 @@ else if (page == "cashier")
         <div class="flex items-start justify-between gap-4"><div><p class="text-xs uppercase tracking-wider text-zinc-400">Cashier</p><h1 class="mt-1 text-lg font-semibold">@setup.ShopName</h1></div><span class="rounded-full bg-brand-100 px-3 py-1 font-mono text-[11px] text-zinc-500">POS</span></div>
         <section class="space-y-4 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
             <div class="space-y-1"><label for="cashierPin" class="text-xs font-medium text-zinc-600">Cashier PIN</label><input id="cashierPin" type="password" autocomplete="off" @bind="pin" placeholder="Enter PIN for this session" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 text-sm" /></div>
+            <button type="button" disabled="@busy" @onclick="RefreshSettings" class="text-xs font-medium underline">Sync shop settings</button>
             <div class="space-y-1"><label for="lookup" class="text-xs font-medium text-zinc-600">Customer Search</label><div class="flex gap-2"><input id="lookup" @bind="lookup" @bind:event="oninput" @onkeydown="LookupKeyDown" placeholder="Phone number or QR token" class="h-11 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 font-mono text-sm" /><button type="button" disabled="@busy" @onclick="FindMember" class="rounded-xl bg-brand-700 px-4 text-xs font-medium text-white">Find</button><button type="button" title="Scan QR code" aria-label="Scan QR code" @onclick="ScanQr" class="rounded-xl border border-zinc-200 px-3 text-lg text-zinc-700">▦</button></div></div>
         </section>
         @if (showEnroll)
@@ -80,10 +101,19 @@ else if (page == "cashier")
         {
             <section class="space-y-6 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
                 <div class="flex items-start justify-between gap-3 border-b border-zinc-100 pb-4"><div><h2 class="text-base font-semibold">@member.Name</h2><p class="mt-0.5 font-mono text-xs text-zinc-400">@member.Phone</p></div><div class="text-right"><p class="text-[11px] text-zinc-400">Cashback</p><p class="font-mono text-base font-semibold text-brand-800">@Money(member.AvailableCashback) MMK</p></div></div>
-                <div><div class="flex justify-between text-xs"><span class="text-zinc-500">Current Card Progress</span><span class="font-mono font-semibold">@member.Stamps of @setup.Policy.MaxStamps stamps</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-brand-100"><div class="h-full rounded-full bg-brand-700" style="width: @(Math.Min(100, member.Stamps * 100 / Math.Max(1, setup.Policy.MaxStamps)))%"></div></div></div>
+                <div><div class="flex justify-between text-xs"><span class="text-zinc-500">Current Card Progress</span><span class="font-mono font-semibold">@member.Stamps of @setup.Policy.MaxStamps stamps</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-brand-100"><div class="h-full rounded-full bg-brand-700" style="width: @(Math.Min(100, member.Stamps * 100 / Math.Max(1, setup.Policy.MaxStamps)))%"></div></div><p class="mt-2 text-xs text-zinc-500">Spend carried forward: @Money(member.SpendRemainder) MMK · Reward choices: @member.RewardCredits</p></div>
                 <div class="space-y-1"><label for="spend" class="text-xs text-zinc-500">Bill amount (MMK)</label><input id="spend" type="number" min="0" @bind="spend" class="h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></div>
-                <div class="grid grid-cols-2 gap-3"><button type="button" disabled="@(busy || spend < setup.Policy.MinSpendPerStamp)" @onclick="AddStamp" class="h-12 rounded-xl bg-brand-700 text-xs font-medium text-white">+ Add 1 Stamp</button><button type="button" disabled="@(busy || member.AvailableCashback < setup.Policy.MinWithdrawal)" @onclick="Withdraw" class="h-12 rounded-xl border border-zinc-200 text-xs font-medium">Cash Out @Money(member.AvailableCashback)</button></div>
-                <p class="text-[11px] text-zinc-400">Minimum bill: @Money(setup.Policy.MinSpendPerStamp) MMK. Minimum payout: @Money(setup.Policy.MinWithdrawal) MMK.</p>
+                <div class="grid grid-cols-2 gap-3"><button type="button" disabled="@(busy || spend < 1)" @onclick="AddStamp" class="h-12 rounded-xl bg-brand-700 text-xs font-medium text-white">Record purchase</button><button type="button" disabled="@(busy || member.AvailableCashback < setup.Policy.MinWithdrawal)" @onclick="Withdraw" class="h-12 rounded-xl border border-zinc-200 text-xs font-medium">Cash Out @Money(member.AvailableCashback)</button></div>
+                <p class="text-[11px] text-zinc-400">@Money(setup.Policy.MinSpendPerStamp) MMK per stamp. Minimum payout: @Money(setup.Policy.MinWithdrawal) MMK.</p>
+                @if (member.Claims.Any(c => c.Status == "Pending"))
+                {
+                    <div class="space-y-3 border-t border-zinc-100 pt-4"><h3 class="text-xs font-semibold">Selected rewards to redeem</h3><p class="text-xs text-zinc-500">For a percentage discount, enter this bill amount above before redeeming.</p>
+                        @foreach (var claim in member.Claims.Where(c => c.Status == "Pending"))
+                        {
+                            <div class="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3 text-xs"><div><p class="font-medium">@claim.Name</p><p class="text-zinc-500">@(claim.Type == "PERCENT_DISCOUNT" ? $"{claim.Value}% off, up to {Money(claim.MaxDiscount)} MMK" : "Free item")</p></div><button type="button" disabled="@(busy || (claim.Type == "PERCENT_DISCOUNT" && spend < 1))" @onclick="() => RedeemReward(claim)" class="rounded-lg bg-brand-700 px-3 py-2 text-white">Redeem</button></div>
+                        }
+                    </div>
+                }
                 @if (memberLink.Length > 0)
                 {
                     <div class="border-t border-zinc-100 pt-4"><p class="mb-2 text-xs font-semibold">Customer QR</p><div id="memberQr" class="inline-block rounded-lg border border-zinc-100 p-2"></div><p class="mt-2 break-all font-mono text-[11px] text-zinc-400">@MemberUrl()</p><button type="button" @onclick="CopyMemberUrl" class="mt-2 text-xs font-medium underline">Copy member link</button></div>
@@ -103,8 +133,21 @@ else
         else
         {
             <section class="flex items-start justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><div><p class="text-xs font-medium uppercase tracking-wider text-zinc-400">@setup.ShopName</p><h1 class="mt-1 text-lg font-semibold">@member.Name</h1><p class="mt-0.5 font-mono text-xs text-zinc-500">@member.Phone</p></div><div class="text-right"><p class="text-xs text-zinc-400">Available Balance</p><p class="mt-0.5 font-mono text-xl font-semibold text-brand-800">@Money(member.AvailableCashback) <span class="text-xs font-normal text-zinc-500">MMK</span></p></div></section>
-            <section class="space-y-5 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><div class="flex items-start justify-between gap-2"><div><h2 class="text-sm font-semibold">Stamp Progress</h2><p class="mt-0.5 text-xs text-zinc-500">Spend @Money(setup.Policy.MinSpendPerStamp) MMK per visit to earn 1 stamp</p></div><span class="shrink-0 rounded-md bg-reward/20 px-2.5 py-1 font-mono text-xs font-semibold text-brand-900">@member.Stamps / @setup.Policy.MaxStamps</span></div><div class="grid grid-cols-5 gap-2 py-1 sm:grid-cols-10 sm:gap-3">@for (var i = 1; i <= setup.Policy.MaxStamps; i++) { var earned = i <= member.Stamps; <div class="flex aspect-square items-center justify-center rounded-full text-[11px] @(earned ? "bg-brand-700 font-bold text-white" : "border border-zinc-200 bg-zinc-50 font-mono text-zinc-400")">@(earned ? "✓" : i.ToString())</div> }</div><div class="flex flex-wrap justify-between gap-2 border-t border-zinc-100 pt-3 text-xs text-zinc-500"><span>နောက် @Math.Max(0, setup.Policy.MaxStamps - member.Stamps) ကြိမ် သုံးစွဲပါက <strong class="font-mono text-brand-900">@Money(setup.Policy.CashbackReward) MMK</strong> ရရှိပါမည်</span><span class="font-mono text-[11px]">Lifetime: @Money(member.LifetimeCashback) MMK</span></div></section>
-            <section class="rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Activity History</h2>@if (member.History.Count == 0) { <p class="mt-4 text-xs text-zinc-400">No activity yet.</p> } else { <div class="mt-3 divide-y divide-zinc-100">@foreach (var item in member.History) { <div class="flex justify-between gap-3 py-3 text-xs"><div><p class="font-medium text-zinc-800">@ActionLabel(item.Action)</p><p class="mt-0.5 font-mono text-[11px] text-zinc-400">@item.Timestamp</p></div><span class="font-mono font-medium">@(item.Action == "STAMP_ADD" ? "+1 Stamp" : (item.Delta >= 0 ? "+" : "") + Money(item.Delta) + " MMK")</span></div> }</div> }</section>
+            <section class="space-y-5 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><div class="flex items-start justify-between gap-2"><div><h2 class="text-sm font-semibold">Stamp Progress</h2><p class="mt-0.5 text-xs text-zinc-500">@(legacyMode ? $"Spend at least {Money(setup.Policy.MinSpendPerStamp)} MMK per visit to earn 1 stamp" : $"Every {Money(setup.Policy.MinSpendPerStamp)} MMK earns 1 stamp")</p></div><span class="shrink-0 rounded-md bg-reward/20 px-2.5 py-1 font-mono text-xs font-semibold text-brand-900">@member.Stamps / @setup.Policy.MaxStamps</span></div><div class="grid grid-cols-5 gap-2 py-1 sm:grid-cols-10 sm:gap-3">@for (var i = 1; i <= setup.Policy.MaxStamps; i++) { var earned = i <= member.Stamps; <div class="flex aspect-square items-center justify-center rounded-full text-[11px] @(earned ? "bg-brand-700 font-bold text-white" : "border border-zinc-200 bg-zinc-50 font-mono text-zinc-400")">@(earned ? "✓" : i.ToString())</div> }</div><div class="flex flex-wrap justify-between gap-2 border-t border-zinc-100 pt-3 text-xs text-zinc-500"><span>@(legacyMode ? $"Next {Math.Max(0, setup.Policy.MaxStamps - member.Stamps)} visits earn {Money(setup.Policy.CashbackReward)} MMK cashback" : $"Carried spend: {Money(member.SpendRemainder)} MMK · Reward choices: {member.RewardCredits}")</span><span class="font-mono text-[11px]">Lifetime cashback: @Money(member.LifetimeCashback) MMK</span></div></section>
+            @if (member.RewardCredits > 0 && page == "member")
+            {
+                <section class="space-y-3 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-sm font-semibold">Choose your reward</h2><p class="text-xs text-zinc-500">You have @member.RewardCredits choice(s). Choose one reward for each completed card.</p>
+                    @foreach (var reward in setup.Rewards.Where(r => r.Active))
+                    {
+                        <div class="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3"><div><p class="text-sm font-medium">@reward.Name</p><p class="text-xs text-zinc-500">@RewardLabel(reward)</p><p class="text-xs text-zinc-400">@reward.Description</p></div><button type="button" disabled="@busy" @onclick="() => SelectReward(reward)" class="rounded-lg bg-brand-700 px-3 py-2 text-xs text-white">Choose</button></div>
+                    }
+                </section>
+            }
+            @if (member.Claims.Any(c => c.Status == "Pending"))
+            {
+                <section class="space-y-2 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-sm font-semibold">Rewards ready to use</h2>@foreach (var claim in member.Claims.Where(c => c.Status == "Pending")) { <p class="text-xs">@claim.Name — show this card to the cashier.</p> }</section>
+            }
+            <section class="rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Activity History</h2>@if (member.History.Count == 0) { <p class="mt-4 text-xs text-zinc-400">No activity yet.</p> } else { <div class="mt-3 divide-y divide-zinc-100">@foreach (var item in member.History) { <div class="flex justify-between gap-3 py-3 text-xs"><div><p class="font-medium text-zinc-800">@ActionLabel(item.Action)</p><p class="mt-0.5 font-mono text-[11px] text-zinc-400">@item.Timestamp</p></div><span class="font-mono font-medium">@HistoryDelta(item)</span></div> }</div> }</section>
         }
     </div>
 }

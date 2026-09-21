@@ -55,6 +55,9 @@ function publicMember(member) {
     name: member.name,
     phone: member.phone,
     stamps: member.stamps,
+    spendRemainder: member.spendRemainder,
+    rewardCredits: member.rewardCredits,
+    claims: Array.isArray(member.claims) ? member.claims : [],
     availableCashback: member.availableCashback,
     lifetimeCashback: member.lifetimeCashback,
     lastVisit: member.lastVisit,
@@ -71,10 +74,17 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { url, token } = open(req.query?.code);
       const result = await sheetRequest(url, { action: 'member', token });
-      return res.status(200).json({ ok: true, shopName: result.shopName, policy: result.policy, member: publicMember(result.member) });
+      return res.status(200).json({ ok: true, schemaVersion: result.schemaVersion || 1, shopName: result.shopName, policy: result.policy, rewards: result.rewards || [], member: publicMember(result.member) });
     }
     const body = req.body;
     if (!body || typeof body !== 'object' || JSON.stringify(body).length > 2000) return res.status(400).json({ ok: false, error: 'Invalid request.' });
+    if (body.action === 'claim') {
+      const { url, token } = open(body.code);
+      if (typeof body.rewardId !== 'string' || !memberToken.test(body.rewardId) || typeof body.requestId !== 'string' || !/^[a-f0-9]{32}$/i.test(body.requestId))
+        return res.status(400).json({ ok: false, error: 'Invalid reward selection.' });
+      const result = await sheetRequest(url, { action: 'claim', token, rewardId: body.rewardId, requestId: body.requestId });
+      return res.status(200).json({ ok: true, schemaVersion: result.schemaVersion || 1, shopName: result.shopName, policy: result.policy, rewards: result.rewards || [], member: publicMember(result.member) });
+    }
     if (body.code) {
       const { url, token } = open(body.code);
       if (body.url !== url || typeof body.pin !== 'string' || !body.pin) return res.status(400).json({ ok: false, error: 'Invalid shop or PIN.' });

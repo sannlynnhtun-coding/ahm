@@ -24,8 +24,8 @@ test('encrypted member links hide routing details, reject tampering, and resolve
     const body = JSON.parse(options.body);
     requests.push({ url: String(url), body });
     return { ok: true, json: async () => ({
-      ok: true, shopName: 'Test Shop', policy: { maxStamps: 10 },
-      member: { token, name: 'Test Member', phone: '09123456789', stamps: 3, availableCashback: 0, lifetimeCashback: 0, history: [] }
+      ok: true, schemaVersion: 2, shopName: 'Test Shop', policy: { maxStamps: 10 }, rewards: [{ id: token, name: 'Coffee', type: 'FREE_ITEM', active: true }],
+      member: { token, name: 'Test Member', phone: '09123456789', stamps: 3, spendRemainder: 5000, rewardCredits: 1, claims: [], availableCashback: 0, lifetimeCashback: 0, history: [] }
     }) };
   };
   try {
@@ -44,7 +44,19 @@ test('encrypted member links hide routing details, reject tampering, and resolve
     assert.equal(res.body.member.name, 'Test Member');
     assert.equal('token' in res.body.member, false);
     assert.equal('url' in res.body, false);
+    assert.equal(res.body.member.spendRemainder, 5000);
+    assert.equal(res.body.member.rewardCredits, 1);
+    assert.equal(res.body.schemaVersion, 2);
+    assert.equal(res.body.rewards[0].name, 'Coffee');
     assert.equal(requests.at(-1).body.action, 'member');
+
+    res = response();
+    await handler({ method: 'POST', body: { action: 'claim', code, rewardId: token, requestId: 'a'.repeat(32) } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(requests.at(-1).body.action, 'claim');
+    assert.equal(requests.at(-1).body.token, token);
+    assert.equal('url' in res.body, false);
+    assert.equal('token' in res.body.member, false);
 
     res = response();
     await handler({ method: 'POST', body: { code, url: shopUrl, pin: 'long-test-pin' } }, res);

@@ -35,7 +35,7 @@
 * Customer ဘေလ်ရှင်းသည့်အခါ ဖုန်းနံပါတ် (သို့မဟုတ် Encrypted QR) ဖြင့် ရှာဖွေပြီး Stamp ပေါင်းပေးခြင်း၊ Cashback ထုတ်ပေးခြင်းများ ဆောင်ရွက်သူ။
 
 
-* ဆိုင်၏ မူဝါဒ (Min Spend, Target Stamps, Cashback Amount) များကို သတ်မှတ်သူ။
+* ဆိုင်၏ မူဝါဒ (Spend per Stamp, Target Stamps) နှင့် Reward Catalog ကို သတ်မှတ်သူ။
 
 
 
@@ -87,19 +87,19 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
 
 
 * **`PolicyStore`:**
-* `min_spend_per_stamp`: Stamp ၁ ခု ရရှိရန် အနည်းဆုံး သုံးစွဲငွေ (Default: 10,000 MMK)
+* `min_spend_per_stamp`: Stamp ၁ ခု ရရှိရန် သုံးစွဲငွေ အချိုး (Default: 10,000 MMK)
 
 
 * `max_stamps`: ကတ်ပြည့်ရန် လိုအပ်သော အရေအတွက် (Default: 10 ခု)
 
 
-* `cashback_reward`: ကတ်ပြည့်ပါက အလိုအလျောက် ပြန်အမ်းမည့်ငွေ (Default: 10,000 MMK)
+* `cashback_reward`: Sheet အဟောင်းမှ ပြောင်းလာသည့်ဆိုင်အတွက် မူလ Cashback Catalog Item ဖန်တီးရာတွင်သာ အသုံးပြုသော တန်ဖိုး
 
 
 * `min_withdrawal`: စတင်ထုတ်ယူနိုင်သည့် အနည်းဆုံးပမာဏ (Default: 1,000 MMK)
 
 
-* `allow_rollover`: သတ်မှတ်ချက်ထက် ပိုလျှံသော Stamp များကို နောက်ကတ်သို့ ကူးပြောင်းခွင့် (Boolean)
+* ပိုလျှံသော Stamp နှင့် သုံးစွဲငွေကို နောက်ကတ်/နောက်ဝယ်ယူမှုသို့ အမြဲ ကူးပြောင်းမည်။ Reward Catalog ကို Sheet တွင် သိမ်းပြီး Browser Setup တွင် Cache လုပ်မည်။
 
 
 
@@ -113,13 +113,13 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
 
 ## ၅။ Google Sheet Database ဖွဲ့စည်းပုံ (Shop Owner's Private Storage)
 
-ဆိုင်ရှင်၏ Google Drive ထဲရှိ Sheet ဖိုင်တွင် အောက်ပါ Tab (၃) ခု ပါဝင်မည်ဖြစ်သည်-
+ဆိုင်ရှင်၏ Google Drive ထဲရှိ Sheet ဖိုင်တွင် အောက်ပါ Tab (၅) ခု ပါဝင်မည်ဖြစ်သည်-
 
 ### ၅.၁။ Tab 1: `Member_Cards`
 
 * **Column A (Phone_Number):** Customer ဖုန်းနံပါတ် (Primary Search Key)
 * **Column B (Customer_Name):** စားသုံးသူအမည်
-* **Column C (Current_Stamps):** လက်ရှိ Stamp အရေအတွက် (၀ မှ ၁၀)
+* **Column C (Current_Stamps):** လက်ရှိ Stamp အရေအတွက်
 
 
 * **Column D (Available_Cashback):** ထုတ်ယူနိုင်သည့် ပြန်အမ်းငွေပမာဏ (MMK)
@@ -129,6 +129,7 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
 
 
 * **Column F (Last_Visit):** နောက်ဆုံး ဘေလ်ရှင်းခဲ့သည့် နေ့စွဲနှင့် အချိန်
+* **Column G-J:** Member Token၊ နောက်ဝယ်ယူမှုသို့ ဆက်သယ်သောငွေ၊ မသုံးရသေးသော ဆုရွေးခွင့်နှင့် နောက်ဆုံးဆုရွေးချယ်မှု Request ID
 
 ### ၅.၂။ Tab 2: `Transaction_Logs`
 
@@ -136,7 +137,7 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
 
 
 * **Column B (Phone_Number):** Customer ဖုန်းနံပါတ်
-* **Column C (Action):** `STAMP_ADD`, `CARD_COMPLETE`, `CASHBACK_PAYOUT`
+* **Column C (Action):** `STAMP_ADD`, `CARD_COMPLETE`, `REWARD_SELECTED`, `REWARD_REDEEM`, `CASHBACK_PAYOUT`
 
 * **Column D (Delta_Amount):** အတိုး/အလျော့ ပမာဏ (Stamp သို့မဟုတ် Cashback MMK)
 
@@ -145,12 +146,21 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
 
 
 * **Column F (Timestamp):** ဖြစ်ပွားခဲ့သည့် အချိန်
+* **Column G (Request_ID):** တူညီသော Request ကို ထပ်မံမတွက်မိစေရန် ID
 
 
 
 ### ၅.၃။ Tab 3: `Shop_Config`
 
 * ဆိုင်၏ မူဝါဒ Parameter များနှင့် စည်းမျဉ်းများကို Key-Value ပုံစံဖြင့် သိမ်းဆည်းထားခြင်း။
+
+### ၅.၄။ Tab 4: `Reward_Catalog`
+
+* ဆိုင်က ဖန်တီးထားသော Cashback၊ ရာခိုင်နှုန်း Discount နှင့် Free Item များ၏ အမည်၊ တန်ဖိုး၊ အများဆုံးလျှော့ငွေနှင့် Active အခြေအနေကို သိမ်းဆည်းသည်။
+
+### ၅.၅။ Tab 5: `Member_Rewards`
+
+* Customer ရွေးခဲ့သည့် ဆု၏ အမည်၊ အမျိုးအစား၊ တန်ဖိုးနှင့် Pending/Applied/Redeemed အခြေအနေကို ရွေးချယ်ချိန်တန်ဖိုးအတိုင်း သိမ်းဆည်းသည်။
 
 
 
@@ -183,7 +193,7 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
                 └───────────────────────┬───────────────────────┘
                                         │
                                         ▼
-                [ဘေလ်ပမာဏအရ Stamp ပေါင်းထည့်ပေးခြင်း (+1)]
+                [ဘေလ်ပမာဏနှင့် ပိုငွေအရ Stamp အရေအတွက်တွက်ခြင်း]
 
 ```
 
@@ -202,22 +212,13 @@ LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **Indexe
 
 
 
-### ၆.၄။ Auto Reward နှင့် ငွေထုတ်ယူမှု စနစ် (Cashback Engine)
+### ၆.၄။ Dynamic Stamp Rule နှင့် Reward Catalog
 
-* **Auto Reward Sequence:**
-* ဘေလ်ရှင်း၍ Stamp ၁၀ ခု ပြည့်သွားပါက စနစ်က Stamp အား 0 သို့ ပြန်ချပေးသည်။ (ပိုလျှံပါက Rollover အဖြစ် နောက်ကတ်သို့ ကူးပေးသည်)။
-
-
-* တစ်ပြိုင်နက်တည်းမှာပင် `Available Cashback` ထဲသို့ ၁၀,၀၀၀ MMK ထည့်သွင်းပေးပြီး `Lifetime Cashback` တွင် ပေါင်းထည့်ကာ `Transaction_Logs` ထဲတွင် "Card complete" အဖြစ် စာရင်းသွင်းသည်။
-
-
-
-
-* **Cashback Withdrawal:**
-* Customer ၏ Available Cashback သည် အနည်းဆုံး ၁,၀၀၀ MMK ပြည့်ပါက ငွေသားထုတ်ယူခွင့် ရှိသည်။
-
-
-* ဝန်ထမ်းက "Withdraw Cashback" နှိပ်လိုက်သည်နှင့် ငွေထုတ်ပေးပြီး Sheet ထဲတွင် `Paid` အဖြစ် Update ပြုလုပ်သွားမည် ဖြစ်သည်။
+* ဆိုင်သည် `Spend per Stamp` နှင့် `Target Stamps` ကို Setup တွင် ပြင်နိုင်သည်။ ဘေလ်ငွေနှင့် ယခင်ပိုငွေကို ပေါင်းပြီး `floor(total / Spend per Stamp)` ဖြင့် Stamp တွက်သည်။ ကျန်ငွေကို နောက်ဝယ်ယူမှုသို့ ဆက်သယ်သည်။ ဥပမာ ၁၀,၀၀၀ MMK လျှင် Stamp ၁ ခုအဖြစ် သတ်မှတ်ထားချိန် ၂၅,၀၀၀ MMK ဘေလ်သည် Stamp ၂ ခုနှင့် ပိုငွေ ၅,၀၀၀ MMK ဖြစ်သည်။
+* Stamp ပန်းတိုင်ပြည့်တိုင်း ဆုရွေးခွင့် ၁ ကြိမ် ရသည်။ တစ်ဘေလ်မှ ပန်းတိုင်များစွာ ပြည့်နိုင်ပြီး ပိုသော Stamp များကို ဆက်သယ်သည်။
+* ဆိုင်သည် Reward Catalog ထဲတွင် Cashback ပမာဏ၊ အများဆုံးလျှော့ငွေပါသော ရာခိုင်နှုန်း Discount သို့မဟုတ် Free Item ကို ဖန်တီးပြီး ဖွင့်/ပိတ်နိုင်သည်။ Customer သည် QR Member Page မှ ရရှိထားသော ဆုရွေးခွင့်အတွက် ဆုတစ်မျိုးကို ရွေးသည်။
+* Cashback ရွေးလျှင် `Available Cashback` နှင့် `Lifetime Cashback` တိုးသည်။ Discount သို့မဟုတ် Free Item ရွေးလျှင် Cashier မှ အသုံးပြုမှုကို အတည်ပြုသည်။ ရွေးပြီးသားဆု၏ အမည်နှင့်တန်ဖိုးကို မှတ်တမ်းထဲ သိမ်းထားသောကြောင့် Catalog ပြင်ခြင်းက ထိုဆုကို မပြောင်းစေပါ။
+* Cashback Withdrawal ကို သတ်မှတ်ထားသော အနည်းဆုံးပမာဏ ပြည့်ချိန် Cashier က မှတ်တမ်းတင်ပြီး Customer ကို ငွေသားပေးသည်။ Discount ပမာဏကို System က တွက်ပေးပြီး Cashier က ဘေလ်ပေါ်တွင် အသုံးပြုသည်။
 
 
 
@@ -232,10 +233,12 @@ Customer သည် QR ဖတ်၍ ကြည့်ရှုသည့်အခါ
 * **Header:** ဆိုင်အမည်နှင့် Customer နာမည်။
 
 
-* **Member Card (Stamp Grid):** အကွက် ၁၀ ကွက်ပါ Card ပြားပေါ်တွင် ရရှိထားသော Stamp အရေအတွက် (ဥပမာ - `1/10 stamps`) နှင့် စည်းမျဉ်းစာသား။
+* **Member Card (Stamp Grid):** ဆိုင်က သတ်မှတ်ထားသော Stamp ပန်းတိုင်၊ လက်ရှိ Stamp၊ နောက်ဝယ်ယူမှုသို့ ဆက်သယ်ထားသော ငွေပမာဏနှင့် ဆုရွေးခွင့် အရေအတွက်။
 
 
 * **Cashback Status:** ထုတ်ယူနိုင်သော လက်ကျန်ငွေ (`0 MMK available`) နှင့် စုစုပေါင်း ရရှိခဲ့သည့် ငွေပမာဏ (`Lifetime cashback earned: 20,000 MMK`)။
+
+* **Reward Choice:** ဆုရွေးခွင့် ရှိပါက Customer သည် Catalog ထဲမှ ဆုတစ်မျိုးကို ရွေးနိုင်ပြီး မသုံးရသေးသော Discount/Free Item ကို ပြနိုင်သည်။
 
 
 * **Withdrawal & Activity Logs:** ငွေထုတ်ယူခဲ့သည့် စာရင်းနှင့် လတ်တလော Stamp ရရှိခဲ့သည့် မှတ်တမ်းများ။
