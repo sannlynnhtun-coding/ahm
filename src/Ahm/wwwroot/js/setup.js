@@ -5,3 +5,9 @@ window.ahmSetup = {
         await navigator.clipboard.writeText(await response.text());
     }
 };
+
+window.ahmUi = {
+    focusById(id) {
+        document.getElementById(id)?.focus();
+    }
+};

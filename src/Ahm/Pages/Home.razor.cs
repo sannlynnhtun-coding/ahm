@@ -8,11 +8,13 @@ namespace Ahm.Pages;
 
 public partial class Home : IDisposable
 {
-    private bool loaded, busy, showEnroll, legacyMode;
-    private string page = "", pin = "", lookup = "", newName = "", message = "", memberLink = "", memberCode = "", pendingRewardId = "", pendingClaimRequestId = "", pendingRedeemClaimId = "", pendingRedeemRequestId = "";
-    private int spend = 10000;
+    private bool loaded, busy, showEnroll, legacyMode, messageIsError, confirmPayout;
+    private string page = "", pin = "", lookup = "", newName = "", message = "", memberLink = "", memberCode = "", pendingRewardId = "", pendingClaimRequestId = "", pendingRedeemClaimId = "", pendingRedeemRequestId = "", payoutRequestId = "";
+    private int spend;
+    private int? rewardNameFocusIndex;
     private ShopSetup setup = new();
     private Member? member;
+    private ShopReward? rewardToConfirm;
 
     protected override void OnInitialized() => Nav.LocationChanged += LocationChanged;
 
@@ -29,12 +31,17 @@ public partial class Home : IDisposable
     {
         page = new Uri(Nav.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
         loaded = false;
+        message = "";
+        messageIsError = false;
+        confirmPayout = false;
         legacyMode = false;
         member = null;
+        rewardToConfirm = null;
         memberLink = "";
         memberCode = "";
         pendingRewardId = pendingClaimRequestId = "";
         pendingRedeemClaimId = pendingRedeemRequestId = "";
+        payoutRequestId = "";
         showEnroll = false;
         try
         {
@@ -75,7 +82,7 @@ public partial class Home : IDisposable
                 }
             }
         }
-        catch (Exception ex) { message = ex.Message; }
+        catch (Exception ex) { SetError(ex); }
         loaded = true;
     }
 
@@ -83,14 +90,19 @@ public partial class Home : IDisposable
     {
         if (member is not null && memberLink.Length > 0 && page == "cashier")
             await Js.InvokeVoidAsync("ahmQr.render", "memberQr", MemberUrl());
+        if (rewardNameFocusIndex is int index)
+        {
+            rewardNameFocusIndex = null;
+            await Js.InvokeVoidAsync("ahmUi.focusById", $"reward-name-{index}");
+        }
     }
 
     private async Task SaveSetup()
     {
         if (busy) return;
-        if (!Uri.TryCreate(setup.GasUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != "script.google.com" || !uri.AbsolutePath.EndsWith("/exec") || string.IsNullOrWhiteSpace(pin)) { message = "Enter a deployed Apps Script URL and cashier PIN."; return; }
-        if (string.IsNullOrWhiteSpace(setup.ShopName) || setup.Policy.MinSpendPerStamp < 1 || setup.Policy.MaxStamps is < 1 or > 30 || setup.Policy.CashbackReward < 1 || setup.Policy.MinWithdrawal < 1) { message = "Shop name and policy values are required."; return; }
-        if (setup.Rewards.Count == 0 || setup.Rewards.All(r => !r.Active)) { message = "Add at least one active reward."; return; }
+        if (!Uri.TryCreate(setup.GasUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != "script.google.com" || !uri.AbsolutePath.EndsWith("/exec") || string.IsNullOrWhiteSpace(pin)) { SetError("Enter your Apps Script URL ending in /exec and the cashier PIN."); return; }
+        if (string.IsNullOrWhiteSpace(setup.ShopName) || setup.Policy.MinSpendPerStamp < 1 || setup.Policy.MaxStamps is < 1 or > 30 || setup.Policy.CashbackReward < 1 || setup.Policy.MinWithdrawal < 1) { SetError("Enter a shop name and valid stamp and payout amounts."); return; }
+        if (setup.Rewards.Count == 0 || setup.Rewards.All(r => !r.Active)) { SetError("Add and enable at least one reward."); return; }
         setup.Policy.AllowRollover = true;
         await Run(async () => {
             await Api.CheckVersionAsync(setup.GasUrl);
@@ -105,7 +117,8 @@ public partial class Home : IDisposable
 
     private async Task RefreshSettings()
     {
-        if (busy || string.IsNullOrWhiteSpace(pin) || string.IsNullOrWhiteSpace(setup.GasUrl)) return;
+        if (busy) return;
+        if (string.IsNullOrWhiteSpace(pin) || string.IsNullOrWhiteSpace(setup.GasUrl)) { SetError("Enter the Apps Script URL and cashier PIN before loading settings."); return; }
         await Run(async () => {
             await Api.CheckVersionAsync(setup.GasUrl);
             var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "find", Pin = pin });
@@ -114,17 +127,23 @@ public partial class Home : IDisposable
         });
     }
 
-    private void AddReward() => setup.Rewards.Add(new ShopReward { Name = "New reward", Type = "FREE_ITEM", StockQuantity = 0 });
-    private void RemoveReward(ShopReward reward)
+    private void AddReward()
+    {
+        setup.Rewards.Add(new ShopReward { Type = "FREE_ITEM" });
+        rewardNameFocusIndex = setup.Rewards.Count - 1;
+    }
+    private async Task RemoveReward(ShopReward reward)
     {
         if (string.IsNullOrEmpty(reward.Id)) setup.Rewards.Remove(reward);
         else reward.Active = false;
+        await Js.InvokeVoidAsync("ahmUi.focusById", "add-reward");
     }
 
     private async Task FindMember()
     {
-        if (busy || string.IsNullOrWhiteSpace(lookup)) return;
-        if (string.IsNullOrWhiteSpace(pin)) { message = "Enter your cashier PIN first."; return; }
+        if (busy) return;
+        if (string.IsNullOrWhiteSpace(lookup)) { SetError("Enter a phone number or member QR link."); return; }
+        if (string.IsNullOrWhiteSpace(pin)) { SetError("Enter your cashier PIN first."); return; }
         await Run(async () => {
             var value = lookup.Trim();
             var isUrl = Uri.TryCreate(value, UriKind.Absolute, out var url);
@@ -136,9 +155,11 @@ public partial class Home : IDisposable
             member = result.Member;
             await SyncSettingsAsync(result);
             pendingRedeemClaimId = pendingRedeemRequestId = "";
+            payoutRequestId = "";
+            confirmPayout = false;
             showEnroll = member is null && token.Length == 0 && code.Length == 0;
             if (member is not null) await Store.SaveCachedMemberAsync(member);
-            message = member is null ? "No member found." : "Member loaded.";
+            message = member is null ? "No customer found. Check the number or create a member card below." : "Customer card loaded.";
             if (member is not null) await PrepareMemberLinkAsync();
         });
     }
@@ -167,6 +188,8 @@ public partial class Home : IDisposable
             member = result.Member;
             await SyncSettingsAsync(result);
             if (member is not null) await Store.SaveCachedMemberAsync(member);
+            confirmPayout = false;
+            payoutRequestId = "";
             message = "Purchase and stamps synced to Sheet.";
         });
     }
@@ -174,7 +197,7 @@ public partial class Home : IDisposable
     private async Task SelectReward(ShopReward reward)
     {
         if (member is null || member.RewardCredits < 1 || reward.StockQuantity == 0 || busy || memberCode.Length == 0) return;
-        if (pendingRewardId.Length > 0 && pendingRewardId != reward.Id) { message = "Refresh the card before choosing a different reward."; return; }
+        if (pendingRewardId.Length > 0 && pendingRewardId != reward.Id) { SetError("Refresh the card before choosing a different reward."); return; }
         pendingRewardId = reward.Id;
         if (pendingClaimRequestId.Length == 0) pendingClaimRequestId = Guid.NewGuid().ToString("N");
         await Run(async () => {
@@ -183,14 +206,19 @@ public partial class Home : IDisposable
             setup.Policy = result.Policy ?? setup.Policy;
             setup.Rewards = result.Rewards ?? setup.Rewards;
             pendingRewardId = pendingClaimRequestId = "";
+            rewardToConfirm = null;
             message = reward.Type == "CASHBACK" ? "Cashback added to your balance." : "Reward selected. Show it to the cashier when using it.";
         });
     }
 
+    private void ReviewReward(ShopReward reward) => rewardToConfirm = reward;
+    private void CancelRewardReview() => rewardToConfirm = null;
+    private Task ConfirmRewardChoice() => rewardToConfirm is null ? Task.CompletedTask : SelectReward(rewardToConfirm);
+
     private async Task RedeemReward(MemberReward reward)
     {
         if (member is null || reward.Status != "Pending" || busy) return;
-        if (pendingRedeemClaimId.Length > 0 && pendingRedeemClaimId != reward.Id) { message = "Refresh the card before redeeming a different reward."; return; }
+        if (pendingRedeemClaimId.Length > 0 && pendingRedeemClaimId != reward.Id) { SetError("Refresh the card before redeeming a different reward."); return; }
         pendingRedeemClaimId = reward.Id;
         if (pendingRedeemRequestId.Length == 0) pendingRedeemRequestId = Guid.NewGuid().ToString("N");
         await Run(async () => {
@@ -206,15 +234,25 @@ public partial class Home : IDisposable
 
     private async Task Withdraw()
     {
-        if (member is null || busy || member.AvailableCashback < setup.Policy.MinWithdrawal) return;
+        if (!confirmPayout || member is null || busy || member.AvailableCashback < setup.Policy.MinWithdrawal) return;
         await Run(async () => {
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "withdraw", Pin = pin, Phone = member.Phone, Amount = member.AvailableCashback, RequestId = Guid.NewGuid().ToString("N") });
+            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "withdraw", Pin = pin, Phone = member.Phone, Amount = member.AvailableCashback, RequestId = payoutRequestId });
             member = result.Member;
             await SyncSettingsAsync(result);
             if (member is not null) await Store.SaveCachedMemberAsync(member);
+            confirmPayout = false;
+            payoutRequestId = "";
             message = "Cashback payout recorded. Pay the customer now.";
         });
     }
+
+    private void ShowPayoutReview()
+    {
+        if (member is null || member.AvailableCashback < setup.Policy.MinWithdrawal) return;
+        if (payoutRequestId.Length == 0) payoutRequestId = Guid.NewGuid().ToString("N");
+        confirmPayout = true;
+    }
+    private void CancelPayoutReview() => confirmPayout = false;
 
     private async Task SyncSettingsAsync(SheetResult result)
     {
@@ -228,19 +266,24 @@ public partial class Home : IDisposable
     private async Task ScanQr()
     {
         try { lookup = await Js.InvokeAsync<string>("ahmQr.scan"); await FindMember(); }
-        catch (Exception ex) { message = ex.Message.Contains("BarcodeDetector") ? "Camera scanning is not supported here. Paste the QR link or token." : ex.Message; }
+        catch (Exception ex) when (ex.Message.Contains("Scanning cancelled")) { }
+        catch (Exception ex) { SetError(ex.Message.Contains("BarcodeDetector") ? "Camera scanning is not supported here. Paste the QR link or token." : "Couldn't scan the QR code. Try again or paste the member link."); }
     }
 
-    private async Task CopyMemberUrl() { await Js.InvokeVoidAsync("navigator.clipboard.writeText", MemberUrl()); message = "Member link copied."; }
+    private async Task CopyMemberUrl()
+    {
+        try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", MemberUrl()); message = "Member link copied. Share it only with this customer."; messageIsError = false; }
+        catch { SetError("Couldn't copy the member link. Try again or show the QR code."); }
+    }
     private async Task PrepareMemberLinkAsync()
     {
         try { memberLink = await Api.CreateMemberLinkAsync(setup.GasUrl, member!.Token); }
-        catch { memberLink = ""; message = "Member loaded, but its QR link could not be created."; }
+        catch { memberLink = ""; SetError("Customer card loaded, but its QR link could not be created. Try finding the customer again."); }
     }
     private async Task CopyScript()
     {
-        try { await Js.InvokeVoidAsync("ahmSetup.copyScript"); message = "Apps Script code copied. Paste it into Code.gs."; }
-        catch { message = "Copy failed. Open the script file below and copy it manually."; }
+        try { await Js.InvokeVoidAsync("ahmSetup.copyScript"); message = "Apps Script code copied. Paste it into Code.gs."; messageIsError = false; }
+        catch { SetError("Couldn't copy the script. Open the code file and copy it manually."); }
     }
     private string MemberUrl() => memberLink.Length == 0 ? "" : Nav.BaseUri.TrimEnd('/') + "/member?c=" + Uri.EscapeDataString(memberLink);
     private static string Money(int value) => value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
@@ -257,5 +300,13 @@ public partial class Home : IDisposable
         _ => (item.Delta >= 0 ? "+" : "") + Money(item.Delta) + " MMK"
     };
     private static string Query(Uri uri, string key) => uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries).Select(part => part.Split('=', 2)).Where(pair => Uri.UnescapeDataString(pair[0]) == key).Select(pair => pair.Length > 1 ? Uri.UnescapeDataString(pair[1]) : "").FirstOrDefault() ?? "";
-    private async Task Run(Func<Task> action) { busy = true; message = ""; try { await action(); } catch (Exception ex) { message = ex.Message; } finally { busy = false; } }
+    private async Task DismissMessage()
+    {
+        message = "";
+        messageIsError = false;
+        await Js.InvokeVoidAsync("ahmUi.focusById", "main-content");
+    }
+    private void SetError(string text) { message = text; messageIsError = true; }
+    private void SetError(Exception ex) => SetError(ex is HttpRequestException or TaskCanceledException ? "Couldn't reach the shop. Check your connection and try again." : ex.Message);
+    private async Task Run(Func<Task> action) { busy = true; message = ""; messageIsError = false; try { await action(); } catch (Exception ex) { SetError(ex); } finally { busy = false; } }
 }

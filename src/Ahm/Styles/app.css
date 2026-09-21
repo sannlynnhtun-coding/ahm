@@ -15,7 +15,18 @@
 @layer base {
   body { @apply bg-[#f7faf8] text-[#20332e] antialiased; }
   ::selection { background: #eab94f; color: #0d302c; }
-  button { cursor: pointer; }
-  button:disabled { cursor: not-allowed; opacity: .5; }
-  input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid #14534c; outline-offset: 2px; }
+  button { cursor: pointer; min-height: 44px; }
+  button:disabled { cursor: not-allowed; opacity: .65; }
+  input:not([type="checkbox"]), select { min-height: 44px; }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #14534c; outline-offset: 2px; }
+  :target { scroll-margin-top: 5rem; }
+}
+
+@layer components {
+  .skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 60; transform: translateY(-160%); border-radius: .5rem; background: #fff; padding: .75rem 1rem; color: #0d302c; font-weight: 600; }
+  .skip-link:focus { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }

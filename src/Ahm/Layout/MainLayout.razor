@@ -1,29 +1,35 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
+@inject IJSRuntime Js
 
-@{ var isMemberPage = new Uri(Nav.Uri).AbsolutePath.Equals("/member", StringComparison.OrdinalIgnoreCase); }
+@{ var currentUri = new Uri(Nav.Uri); var isMemberPage = currentUri.AbsolutePath.Equals("/member", StringComparison.OrdinalIgnoreCase); }
 
 <div class="min-h-screen flex flex-col">
+    <a href="@(currentUri.PathAndQuery + "#main-content")" @onclick="SkipToMain" @onclick:preventDefault class="skip-link">Skip to main content</a>
     <header class="sticky top-0 z-30 w-full border-b border-brand-100 bg-white/90 backdrop-blur-md">
         <div class="mx-auto flex min-h-14 max-w-2xl flex-wrap items-center justify-between gap-3 px-5 py-2">
             @if (isMemberPage)
             {
-                <div class="flex items-center gap-2.5"><img src="/logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><span class="text-sm font-semibold tracking-tight text-brand-900">အမ်း</span></div>
+                <div class="flex items-center gap-2.5"><img src="/logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><span lang="my" class="text-sm font-semibold tracking-tight text-brand-900">အမ်း</span></div>
             }
             else
             {
-                <a href="/" aria-label="Ahm home" class="flex items-center gap-2.5 no-underline"><img src="/logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><span class="text-sm font-semibold tracking-tight text-brand-900">အမ်း</span></a>
+                <a href="/" aria-label="Ahm home" class="flex items-center gap-2.5 no-underline"><img src="/logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><span lang="my" class="text-sm font-semibold tracking-tight text-brand-900">အမ်း</span></a>
             }
             @if (!isMemberPage)
             {
-            <nav aria-label="Main navigation" class="flex rounded-full border border-brand-100 bg-brand-50 p-0.5 text-xs">
-                <NavLink href="/" Match="NavLinkMatch.All" class="rounded-full px-3 py-1 text-zinc-500" ActiveClass="bg-white font-medium text-brand-800 shadow-sm">Customer</NavLink>
-                <NavLink href="/cashier" class="rounded-full px-3 py-1 text-zinc-500" ActiveClass="bg-white font-medium text-brand-800 shadow-sm">Cashier</NavLink>
-                <NavLink href="/setup" class="rounded-full px-3 py-1 text-zinc-500" ActiveClass="bg-white font-medium text-brand-800 shadow-sm">Setup</NavLink>
+            <nav aria-label="Main navigation" class="flex rounded-xl border border-brand-100 bg-brand-50 p-0.5 text-sm">
+                <NavLink href="/" Match="NavLinkMatch.All" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">My card</NavLink>
+                <NavLink href="/cashier" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Cashier</NavLink>
+                <NavLink href="/setup" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Shop setup</NavLink>
             </nav>
             }
         </div>
     </header>
-    <main class="mx-auto w-full max-w-2xl flex-1 px-5 py-8">@Body</main>
-    <footer class="border-t border-brand-100 py-4 text-center font-mono text-[11px] text-brand-600">အမ်း (Ahm) • Smart Loyalty, Earn Cashback</footer>
+    <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-5">@Body</main>
+    <footer class="border-t border-brand-100 px-4 py-4 text-center text-sm text-brand-800"><span lang="my">အမ်း</span> (Ahm) · Shop rewards and cashback</footer>
 </div>
+
+@code {
+    private Task SkipToMain() => Js.InvokeVoidAsync("ahmUi.focusById", "main-content").AsTask();
+}
