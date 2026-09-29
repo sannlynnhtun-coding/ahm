@@ -1,7 +1,7 @@
 {
   "name": "အမ်း (Ahm) — Smart Loyalty",
   "short_name": "Ahm",
-  "description": "Stamp rewards and cashback for Myanmar shops.",
+  "description": "A staff-assisted loyalty workspace connected directly to a shop-owned Google Sheet.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

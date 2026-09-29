@@ -1,5 +1,5 @@
-// Paste this into a script bound to a shop-owned Google Sheet.
-// Set CASHIER_PIN in Project Settings > Script properties, then run initializeAhm once before deploying.
+// LEGACY AHМ v2 MIGRATION ARTIFACT ONLY. Do not use this for new shop onboarding.
+// New Ahm v3 shops connect directly through Google Identity Services and the Sheets API.
 const MEMBER_TAB = 'Member_Cards';
 const LOG_TAB = 'Transaction_Logs';
 const CONFIG_TAB = 'Shop_Config';
@@ -71,6 +71,8 @@ function sheets_(create) {
   const sheetId = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   if (!sheetId) throw new Error('Run initializeAhm from the Apps Script editor before deploying.');
   const spreadsheet = SpreadsheetApp.openById(sheetId);
+  if (spreadsheet.getSheetByName('Ahm_Migration_Lock'))
+    throw new Error('This shop was migrated to Ahm v3. The legacy deployment is locked.');
   const specs = [[MEMBER_TAB, MEMBER_HEADERS], [LOG_TAB, LOG_HEADERS], [CONFIG_TAB, ['Key', 'Value']], [REWARD_TAB, REWARD_HEADERS], [CLAIM_TAB, CLAIM_HEADERS]];
   let createdRewardCatalog = false;
   const found = specs.map(([name, headers]) => {

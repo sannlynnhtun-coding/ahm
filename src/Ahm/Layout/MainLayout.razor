@@ -19,15 +19,15 @@
             @if (!isMemberPage)
             {
             <nav aria-label="Main navigation" class="flex rounded-xl border border-brand-100 bg-brand-50 p-0.5 text-sm">
-                <NavLink href="/" Match="NavLinkMatch.All" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">My card</NavLink>
-                <NavLink href="/cashier" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Cashier</NavLink>
-                <NavLink href="/setup" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Shop setup</NavLink>
+                <NavLink href="/" Match="NavLinkMatch.All" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Home</NavLink>
+                <NavLink href="/cashier" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Staff</NavLink>
+                <NavLink href="/setup" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Setup</NavLink>
             </nav>
             }
         </div>
     </header>
     <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-5">@Body</main>
-    <footer class="border-t border-brand-100 px-4 py-4 text-center text-sm text-brand-800"><span lang="my">အမ်း</span> (Ahm) · Shop rewards and cashback</footer>
+    <footer class="border-t border-brand-100 px-4 py-4 text-center text-sm text-brand-800"><span lang="my">အမ်း</span> (Ahm) · Staff-assisted shop rewards · <a href="/privacy" class="underline">Privacy</a> · <a href="/terms" class="underline">Terms</a></footer>
 </div>
 
 @code {

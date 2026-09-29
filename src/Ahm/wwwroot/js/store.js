@@ -2,10 +2,10 @@ window.ahmStore = (() => {
   let dbPromise;
   function database() {
     if (!dbPromise) dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open('ahm', 1);
+      const request = indexedDB.open('ahm', 2);
       request.onupgradeneeded = () => {
         const db = request.result;
-        for (const name of ['ShopCredentialsStore', 'PolicyStore', 'CustomerCacheStore']) {
+        for (const name of ['ShopCredentialsStore', 'ShopConnectionStore', 'PreferenceStore']) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
         }
       };
@@ -31,5 +31,14 @@ window.ahmStore = (() => {
       transaction.onerror = () => reject(transaction.error);
     });
   }
-  return { get, put };
+  async function remove(store, key) {
+    const db = await database();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(store, 'readwrite');
+      transaction.objectStore(store).delete(key);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+  return { get, put, remove };
 })();

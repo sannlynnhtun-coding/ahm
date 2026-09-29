@@ -2,6 +2,8 @@ const allowedActions = new Set(['version', 'configure', 'find', 'enroll', 'stamp
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', 'Thu, 31 Dec 2026 23:59:59 GMT');
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST required.' });
   const body = req.body;
   if (!body || typeof body !== 'object' || !allowedActions.has(body.action))

@@ -2,174 +2,173 @@
 @page "/setup"
 @page "/cashier"
 @page "/member"
+@page "/privacy"
+@page "/terms"
 @using Ahm.Models
 @using Ahm.Services
 @inject BrowserStore Store
-@inject SheetApi Api
+@inject GoogleSheetsService Sheets
 @inject NavigationManager Nav
+@inject IConfiguration Configuration
 @inject IJSRuntime Js
 
-<PageTitle>@(page switch { "setup" => "Shop setup | Ahm", "cashier" => "Cashier | Ahm", "member" => "Member card | Ahm", _ => "My card | Ahm" })</PageTitle>
-@if (page == "member")
-{
-    <HeadContent><meta name="robots" content="noindex,nofollow" /></HeadContent>
-}
+<PageTitle>@Title</PageTitle>
+@if (page == "member") { <HeadContent><meta name="robots" content="noindex,nofollow" /><meta name="referrer" content="no-referrer" /></HeadContent> }
+
+<div class="mb-5 flex justify-end">
+    <button type="button" @onclick="ToggleLanguage" class="rounded-lg border border-zinc-200 bg-white px-3 text-xs font-semibold">@(burmese ? "English" : "မြန်မာ")</button>
+</div>
 
 @if (!string.IsNullOrEmpty(message))
 {
     <div role="@(messageIsError ? "alert" : "status")" class="mb-6 flex items-start justify-between gap-3 rounded-xl border p-4 text-sm @(messageIsError ? "border-red-300 bg-red-50 text-red-900" : "border-brand-100 bg-brand-50 text-brand-900")">
-        <p>@message</p>
-        <button type="button" class="shrink-0 font-semibold underline underline-offset-2" @onclick="DismissMessage" aria-label="Dismiss message">Dismiss</button>
+        <p>@message</p><button type="button" class="shrink-0 font-semibold underline" @onclick="DismissMessage">@T("ပိတ်မည်", "Dismiss")</button>
     </div>
 }
 
 @if (!loaded)
 {
-    <div role="status" class="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-700">Loading your shop…</div>
+    <div role="status" class="rounded-2xl border border-zinc-200 bg-white p-6 text-sm">@T("အမ်းကို ဖွင့်နေသည်…", "Loading Ahm…")</div>
+}
+else if (page == "privacy")
+{
+    <article class="prose prose-zinc rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Privacy</p>
+        <h1 class="mt-2 text-xl font-semibold">@T("ကိုယ်ရေးအချက်အလက် မူဝါဒ", "Privacy Policy")</h1>
+        <p class="mt-4 text-sm leading-7">@T("အမ်း application သည် Google access token၊ ဆိုင်မှတ်တမ်း သို့မဟုတ် customer မှတ်တမ်းများကို အမ်း server တွင် သိမ်းဆည်းခြင်း မပြုပါ။ Google token ကို browser memory ထဲတွင် session အတွင်းသာ ထားပြီး ဆိုင်၏ Google Sheet ကို browser မှ တိုက်ရိုက်ဖတ်/ရေးသည်။", "The Ahm application does not persist Google tokens or shop/customer records. A Google token exists only in browser memory for the active session, and the browser reads and writes the shop's Google Sheet directly.")</p>
+        <p class="mt-3 text-sm leading-7">@T("Sheet ID၊ public shop ID၊ staff label နှင့် UI preference ကဲ့သို့ secret မဟုတ်သော ဆက်သွယ်မှု setting များကို browser IndexedDB ထဲ သိမ်းနိုင်သည်။ Static host/CDN သည် ၎င်းတို့၏ terms အတိုင်း ပုံမှန် access log များကို process လုပ်နိုင်သည်။", "Non-secret connection settings such as the Sheet ID, public shop ID, staff label and UI preferences may be stored in browser IndexedDB. The static host/CDN may process standard access logs under its own terms.")</p>
+        <p class="mt-3 text-sm leading-7">@T("Legacy QR redirect သည် code ကို ခဏတာ decrypt လုပ်ပြီး route အသစ်သို့ ပြန်ညွှန်းပေးသော်လည်း request/customer data ကို သိမ်းခြင်း သို့မဟုတ် application log ရေးခြင်း မပြုပါ။", "The legacy QR redirect transiently decrypts the code and redirects to the new route; it does not store request/customer data or write application logs.")</p>
+    </article>
+}
+else if (page == "terms")
+{
+    <article class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Terms</p>
+        <h1 class="mt-2 text-xl font-semibold">@T("အသုံးပြုမှု စည်းကမ်းချက်များ", "Terms of Service")</h1>
+        <p class="mt-4 text-sm leading-7">@T("အမ်းသည် အခမဲ့ community tool ဖြစ်ပြီး Google Sheets နှင့် static hosting quota/policy များအပေါ် မူတည်သည်။ ဆိုင်၏ Sheet Editor အားလုံးကို trusted operator အဖြစ် သတ်မှတ်ထားသည်။", "Ahm is a free community tool subject to Google Sheets and static-hosting quotas and policy changes. Every editor of a shop's Sheet is treated as a trusted operator.")</p>
+        <p class="mt-3 text-sm leading-7">@T("ဆိုင်ပိုင်ရှင်သည် Sheet sharing၊ customer consent၊ reward terms နှင့် backup များကို စီမံရန် တာဝန်ရှိသည်။ အမ်းသည် payment processor သို့မဟုတ် accounting system မဟုတ်ပါ။", "The shop owner is responsible for Sheet sharing, customer consent, reward terms and backups. Ahm is not a payment processor or accounting system.")</p>
+    </article>
+}
+else if (page == "member")
+{
+    <section class="space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
+        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">◇</div>
+        <div><p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Staff-assisted member ID</p><h1 class="mt-2 text-xl font-semibold">@T("ဤ QR ကို ဆိုင်ဝန်ထမ်းအား ပြပါ", "Show this QR to shop staff")</h1></div>
+        <p class="text-sm leading-6 text-zinc-700">@T("ဤစာမျက်နှာတွင် balance သို့မဟုတ် customer အချက်အလက် မပြပါ။ ချိတ်ထားသော အမ်း Sheet ကို authorize လုပ်ထားသည့် ဝန်ထမ်းကသာ member record ကို ရှာနိုင်သည်။", "This page does not show balances or customer details. Only staff authorized for the connected Ahm Sheet can look up the member record.")</p>
+        @if (validMemberLink)
+        {
+            <div id="publicMemberQr" class="mx-auto h-56 w-56 rounded-xl border border-zinc-200 bg-white p-3"></div>
+            <p class="break-all font-mono text-xs text-zinc-600">@memberToken</p>
+            @if (setup.PublicShopId == publicShopId)
+            {
+                <a href="@($"/cashier?s={Uri.EscapeDataString(publicShopId)}&t={Uri.EscapeDataString(memberToken)}")" class="inline-flex min-h-11 items-center rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("ဝန်ထမ်းအဖြစ် ဖွင့်မည်", "Open staff lookup")</a>
+            }
+        }
+        else { <p role="alert" class="text-sm text-red-800">@T("Member link မမှန်ပါ။ ဆိုင်ထံမှ QR အသစ်တောင်းပါ။", "This member link is invalid. Ask the shop for a new QR.")</p> }
+    </section>
 }
 else if (page == "setup")
 {
     <div class="space-y-6">
-        <section class="rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
-            <p class="text-xs font-medium uppercase tracking-wider text-zinc-600">Shop setup</p>
-            <h1 class="mt-2 text-lg font-semibold"><span lang="my">ဆိုင် စတင်ချိတ်ဆက်ခြင်း</span> (Shop setup)</h1>
-            <p lang="my" class="mt-2 text-sm leading-relaxed text-zinc-700">သင့် Google Sheet နှင့် Apps Script Web App URL ကို ချိတ်ဆက်ပါ။ ဆိုင်၏ setting များကို ဤ browser တွင် သိမ်းဆည်းပါမည်။</p>
-        </section>
-        <section aria-labelledby="sheet-guide-title" class="rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <p class="text-xs font-medium uppercase tracking-wider text-zinc-600">Connect Google Sheets</p>
-                    <h2 id="sheet-guide-title" class="mt-1 text-base font-semibold">Get the Web App URL</h2>
-                    <p class="mt-1 text-sm leading-relaxed text-zinc-700">Complete these steps once for your shop, then fill in the form below.</p>
-                </div>
-                <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer" class="inline-flex h-9 items-center rounded-lg border border-zinc-200 px-3 text-xs font-medium hover:bg-zinc-50">Open Google Sheets ↗</a>
+        <section class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Google Sheets direct</p>
+            <h1 class="mt-2 text-xl font-semibold">@T("ဆိုင် Sheet ချိတ်ဆက်ခြင်း", "Connect your shop Sheet")</h1>
+            <p class="mt-2 text-sm leading-6 text-zinc-700">@T("Desktop၊ Apps Script၊ database နှင့် cashier PIN မလိုပါ။ Google account ကို ခွင့်ပြုပြီး mobile browser မှ Sheet ကို တိုက်ရိုက်ရွေးပါ။", "No desktop, Apps Script, database or cashier PIN is required. Authorize Google and select the Sheet directly from a mobile browser.")</p>
+            @if (!googleConfigured) { <p role="alert" class="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Google public configuration is missing. Set <code>Google:ClientId</code>, <code>Google:ApiKey</code> and <code>Google:AppId</code> before deployment.</p> }
+            <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" disabled="@(!googleConfigured || busy)" @onclick="ConnectGoogle" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@(googleConnected ? T("Google ပြန်ချိတ်မည်", "Reconnect Google") : T("Google ချိတ်မည်", "Connect Google"))</button>
+                @if (googleConnected) { <span class="self-center text-xs font-medium text-brand-700">● @T("ဤ session အတွက် ချိတ်ထားသည်", "Connected for this session")</span> }
             </div>
-            <ol class="mt-5 space-y-4">
-                <li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">1</span><div><p class="text-sm font-semibold">Create a blank Google Sheet</p><p class="mt-1 text-sm leading-relaxed text-zinc-700">Name it for your shop. In the Sheet, choose <strong class="font-medium text-zinc-700">Extensions → Apps Script</strong>.</p></div></li>
-                <li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">2</span><div><p class="text-sm font-semibold">Paste the Ahm script</p><p class="mt-1 text-sm leading-relaxed text-zinc-700">Replace everything in <span class="font-mono">Code.gs</span> with the code below, then save the Apps Script project.</p><div class="mt-2 flex flex-wrap gap-3"><button type="button" @onclick="CopyScript" class="rounded-lg bg-brand-700 px-3 py-2 text-sm font-medium text-white hover:bg-brand-800">Copy Apps Script code</button><a href="/setup/Ahm-Code.gs.txt" target="_blank" rel="noopener noreferrer" class="self-center text-sm font-medium underline underline-offset-2">View code</a></div></div></li>
-                <li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">3</span><div><p class="text-sm font-semibold">Set a private cashier PIN</p><p class="mt-1 text-sm leading-relaxed text-zinc-700">In Apps Script, open <strong class="font-medium text-zinc-700">Project Settings → Script properties</strong>. Add a property named <span class="font-mono text-zinc-700">CASHIER_PIN</span> with a unique value of at least 8 characters. <a href="https://developers.google.com/apps-script/guides/properties" target="_blank" rel="noopener noreferrer" class="font-medium underline underline-offset-2">Script properties help ↗</a></p></div></li>
-                <li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">4</span><div><p class="text-sm font-semibold">Initialize the Sheet</p><p class="mt-1 text-sm leading-relaxed text-zinc-700">In the Apps Script editor, select <span class="font-mono text-zinc-700">initializeAhm</span> in the function menu and click <strong class="font-medium text-zinc-700">Run</strong>. Complete Google's authorization prompt.</p></div></li>
-                <li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">5</span><div><p class="text-sm font-semibold">Deploy as a Web App</p><p class="mt-1 text-sm leading-relaxed text-zinc-700">Choose <strong class="font-medium text-zinc-700">Deploy → New deployment → Web app</strong>. Set <strong class="font-medium text-zinc-700">Execute as: Me</strong> and <strong class="font-medium text-zinc-700">Who has access: Anyone</strong>, then click Deploy. Copy the Web App URL ending in <span class="font-mono text-zinc-700">/exec</span>. <a href="https://developers.google.com/apps-script/guides/web" target="_blank" rel="noopener noreferrer" class="font-medium underline underline-offset-2">Web App help ↗</a></p></div></li>
-                <li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">6</span><div><p class="text-sm font-semibold">Connect Ahm</p><p class="mt-1 text-sm leading-relaxed text-zinc-700">Paste that <span class="font-mono">/exec</span> URL and the same cashier PIN into the form below. Add your shop details and save.</p></div></li>
-            </ol>
+            <p class="mt-3 text-xs text-zinc-600">@T("တောင်းဆိုသည့် scope: Google ၏ official “See, edit, create, and delete only the specific Google Drive files you use with this app” (drive.file). Token ကို browser memory မှာသာ ထားသည်။", "Requested scope: Google's official “See, edit, create, and delete only the specific Google Drive files you use with this app” (drive.file). The token stays in browser memory only.")</p>
         </section>
-        <form @onsubmit="SaveSetup" @onsubmit:preventDefault class="space-y-5 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
-            <div class="space-y-1.5"><label for="shopName" class="block text-xs font-medium">ဆိုင်အမည် (Shop Name)</label><input id="shopName" required maxlength="100" @bind="setup.ShopName" placeholder="ဥပမာ - Shwe Tea House" class="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-sm" /></div>
-            <div class="space-y-1.5"><label for="gasUrl" class="block text-xs font-medium">Google Apps Script Web App URL</label><input id="gasUrl" required type="url" aria-describedby="gasUrlHelp" @bind="setup.GasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 font-mono text-xs" /><p id="gasUrlHelp" class="text-xs text-zinc-600">Paste the deployed URL ending in /exec.</p></div>
-            <div class="space-y-1.5"><label for="setupPin" class="block text-xs font-medium">Cashier PIN</label><input id="setupPin" required type="password" minlength="8" autocomplete="off" aria-describedby="setupPinHelp" @bind="pin" placeholder="PIN set in Apps Script properties" class="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-sm" /><p id="setupPinHelp" class="text-xs text-zinc-600">Use the PIN from Apps Script. It stays in this browser session.</p></div>
-            <button type="button" disabled="@busy" @onclick="RefreshSettings" class="text-xs font-medium underline">Load latest settings from Sheet</button>
-            <div class="border-t border-zinc-100 pt-4">
-                <h2 class="mb-4 text-sm font-semibold">Stamp and reward settings (<span lang="my">မူဝါဒ သတ်မှတ်ချက်များ</span>)</h2>
+
+        <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <label class="block text-sm font-medium">@T("ဆိုင်အမည်", "Shop name")<input maxlength="100" @bind="setup.ShopName" placeholder="e.g. Shwe Tea House" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+            <label class="block text-sm font-medium">@T("ဤဖုန်း၏ ဝန်ထမ်းအမည်", "Staff label on this device")<input maxlength="100" @bind="setup.StaffLabel" placeholder="e.g. Front counter" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+            <div class="grid gap-3 sm:grid-cols-2">
+                <button type="button" disabled="@(!googleConnected || busy)" @onclick="CreateShop" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("Ahm Sheet အသစ်ဖန်တီးမည်", "Create new Ahm Sheet")</button>
+                <button type="button" disabled="@(!googleConnected || busy)" @onclick="ConnectExisting" class="rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("ရှိပြီး Sheet ရွေးမည်", "Connect existing Sheet")</button>
+            </div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(setup.SpreadsheetId))
+        {
+            <form @onsubmit="SaveSettings" @onsubmit:preventDefault class="space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div><p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Connected</p><h2 class="mt-1 text-lg font-semibold">@setup.ShopName</h2><p class="mt-1 break-all font-mono text-xs text-zinc-500">Sheet @setup.SpreadsheetId</p></div>
+                <label class="block text-sm font-medium">@T("ဆိုင်အမည်", "Shop name")<input required maxlength="100" @bind="setup.ShopName" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="space-y-1"><label for="minSpend" class="text-sm text-zinc-700">Spend per stamp (MMK)</label><input id="minSpend" required type="number" min="1" @bind="setup.Policy.MinSpendPerStamp" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
-                    <div class="space-y-1"><label for="maxStamps" class="text-sm text-zinc-700">Stamps to complete a card</label><input id="maxStamps" required type="number" min="1" max="30" @bind="setup.Policy.MaxStamps" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
-                    <div class="space-y-1"><label for="minWithdrawal" class="text-sm text-zinc-700">Minimum cashback payout (MMK)</label><input id="minWithdrawal" required type="number" min="1" @bind="setup.Policy.MinWithdrawal" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 font-mono text-sm" /></div>
+                    <label class="text-sm">Spend per stamp (MMK)<input required type="number" min="1" @bind="setup.Policy.MinSpendPerStamp" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+                    <label class="text-sm">Stamps per card<input required type="number" min="1" max="30" @bind="setup.Policy.MaxStamps" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+                    <label class="text-sm">Minimum payout (MMK)<input required type="number" min="1" @bind="setup.Policy.MinWithdrawal" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
                 </div>
-                <p lang="my" class="mt-3 text-sm text-zinc-700">Bill တစ်ခုမှ stamp အများအပြားရနိုင်ပြီး ပိုသောငွေကို နောက်ဝယ်ယူမှုအတွက် ဆက်စုထားမည်။ သတ်မှတ်ချက်အသစ်သည် နောက်ဝယ်ယူမှုမှစ၍ ရှိပြီးသား stamp များနှင့်လည်း သက်ဆိုင်မည်။</p>
-            </div>
-            <div class="space-y-3 border-t border-zinc-100 pt-4">
-                <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-sm font-semibold">Reward catalog</h2><button id="add-reward" type="button" @onclick="AddReward" class="text-sm font-medium underline underline-offset-2">Add reward</button></div>
-                @foreach (var reward in setup.Rewards)
-                {
-                    <fieldset @key="reward" class="space-y-3 rounded-xl border border-zinc-200 p-4">
-                        <legend class="sr-only">@(string.IsNullOrWhiteSpace(reward.Name) ? "New reward" : reward.Name) settings</legend>
-                        <div class="flex flex-wrap items-end justify-between gap-2"><label class="min-w-0 flex-1 text-sm font-medium">Reward name <input id="@($"reward-name-{setup.Rewards.IndexOf(reward)}")" required maxlength="100" @bind="reward.Name" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm" /></label><button type="button" disabled="@(!reward.Active && !string.IsNullOrEmpty(reward.Id))" @onclick="() => RemoveReward(reward)" class="text-sm font-medium text-red-800 underline underline-offset-2">@(string.IsNullOrEmpty(reward.Id) ? "Remove reward" : reward.Active ? "Disable reward" : "Reward disabled")</button></div>
-                        <label class="block text-sm font-medium">Reward type<select @bind="reward.Type" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm"><option value="CASHBACK">Cashback</option><option value="PERCENT_DISCOUNT">Percentage discount</option><option value="FREE_ITEM">Free item</option></select></label>
-                        @if (reward.Type != "FREE_ITEM")
-                        {
-                            <label class="block text-xs">@(reward.Type == "CASHBACK" ? "Cashback (MMK)" : "Discount (%)")<input type="number" min="1" max="@(reward.Type == "PERCENT_DISCOUNT" ? "100" : null)" @bind="reward.Value" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
-                        }
-                        @if (reward.Type == "PERCENT_DISCOUNT")
-                        {
-                            <label class="block text-xs">Maximum discount (MMK)<input type="number" min="1" @bind="reward.MaxDiscount" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
-                        }
-                        <label class="block text-xs">Stock quantity (leave blank for unlimited)<input type="number" min="0" @bind="reward.StockQuantity" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></label>
-                        <label class="block text-xs">Description<input maxlength="300" @bind="reward.Description" class="mt-1 h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm" /></label>
-                        <label class="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" @bind="reward.Active" class="h-5 w-5" /> Enabled for customers</label>
-                    </fieldset>
-                }
-            </div>
-            <button disabled="@busy" type="submit" class="h-11 w-full rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">@(busy ? "Saving shop settings…" : "Save shop settings")</button>
-        </form>
-        <p class="px-2 text-xs text-zinc-600">Customer data stays in your Google Sheet. Shop settings are saved in this browser.</p>
+                <div class="space-y-3 border-t border-zinc-100 pt-4">
+                    <div class="flex items-center justify-between"><h2 class="font-semibold">Reward catalog</h2><button id="add-reward" type="button" @onclick="AddReward" class="text-sm font-semibold underline">Add reward</button></div>
+                    @foreach (var reward in setup.Rewards)
+                    {
+                        <fieldset @key="reward.Id" class="space-y-3 rounded-xl border border-zinc-200 p-4">
+                            <label class="block text-sm">Name<input required maxlength="100" @bind="reward.Name" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3" /></label>
+                            <label class="block text-sm">Type<select @bind="reward.Type" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3"><option value="CASHBACK">Cashback</option><option value="PERCENT_DISCOUNT">Percentage discount</option><option value="FREE_ITEM">Free item</option></select></label>
+                            @if (reward.Type != "FREE_ITEM") { <label class="block text-sm">Value<input type="number" min="1" @bind="reward.Value" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3" /></label> }
+                            @if (reward.Type == "PERCENT_DISCOUNT") { <label class="block text-sm">Maximum discount<input type="number" min="0" @bind="reward.MaxDiscount" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3" /></label> }
+                            <label class="block text-sm">Stock (blank = unlimited)<input type="number" min="0" @bind="reward.StockQuantity" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3" /></label>
+                            <label class="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" @bind="reward.Active" class="h-5 w-5" /> Active</label>
+                            <button type="button" @onclick="() => DisableReward(reward)" class="text-sm font-semibold text-red-800 underline">@(reward.Active ? "Disable" : "Remove")</button>
+                        </fieldset>
+                    }
+                </div>
+                <button disabled="@(!googleConnected || busy)" class="h-11 w-full rounded-xl bg-brand-700 text-sm font-semibold text-white">@T("Setting များ Sheet သို့ သိမ်းမည်", "Save settings to Sheet")</button>
+            </form>
+        }
+
+        <details class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <summary class="cursor-pointer font-semibold">@T("Apps Script v2 ဆိုင် ပြောင်းရွှေ့မည်", "Migrate an Apps Script v2 shop")</summary>
+            <p class="mt-3 text-sm leading-6 text-zinc-700">@T("Old Sheet ကို Picker ဖြင့်ရွေးပြီး member state ကို v3 ledger သို့ ကူးမည်။ ပြီးလျှင် old tabs များကို Legacy_ အမည်ပြောင်းကာ stale Apps Script writes ကို ရပ်မည်။", "Choose the old Sheet in Picker. Ahm copies current member state into the v3 ledger, archives logs, then renames old tabs with Legacy_ to stop stale Apps Script writes.")</p>
+            <label class="mt-3 block text-sm">Legacy Apps Script URL<input type="url" @bind="legacyGasUrl" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3 font-mono text-xs" /></label>
+            <button type="button" disabled="@(!googleConnected || busy)" @onclick="MigrateLegacy" class="mt-3 rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("Old Sheet ရွေးပြီး migrate မည်", "Choose old Sheet and migrate")</button>
+        </details>
     </div>
 }
 else if (page == "cashier")
 {
     <div class="space-y-6">
-        <div><p class="text-xs uppercase tracking-wider text-zinc-600">Cashier</p><h1 class="mt-1 text-xl font-semibold">@setup.ShopName</h1></div>
-        <section class="space-y-4 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
-            <div class="space-y-1"><label for="cashierPin" class="text-sm font-medium text-zinc-700">Cashier PIN</label><input id="cashierPin" type="password" autocomplete="off" @bind="pin" placeholder="Enter PIN for this session" class="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 text-sm" /></div>
-            <button type="button" disabled="@busy" @onclick="RefreshSettings" class="text-xs font-medium underline">Sync shop settings</button>
-            <div class="space-y-1"><label for="lookup" class="text-sm font-medium text-zinc-700">Find a customer</label><p id="lookupHelp" class="text-xs text-zinc-600">Enter a phone number or paste a member QR link.</p><div class="flex flex-wrap gap-2"><input id="lookup" aria-describedby="lookupHelp" inputmode="tel" @bind="lookup" @bind:event="oninput" @onkeydown="LookupKeyDown" placeholder="Phone number or QR link" class="h-11 min-w-0 flex-[1_1_12rem] rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-sm" /><button type="button" disabled="@busy" @onclick="FindMember" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">Find customer</button><button type="button" title="Scan QR code" aria-label="Scan QR code" @onclick="ScanQr" class="rounded-xl border border-zinc-200 px-4 text-sm font-medium text-zinc-700">Scan QR</button></div></div>
+        <section class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Staff workspace</p><h1 class="mt-1 text-xl font-semibold">@(string.IsNullOrWhiteSpace(setup.ShopName) ? "Ahm" : setup.ShopName)</h1></div><button type="button" disabled="@(!googleConfigured || busy)" @onclick="ConnectGoogle" class="rounded-xl border border-zinc-300 px-3 text-sm font-semibold">@(googleConnected ? T("ပြန် sync မည်", "Sync now") : T("Google ပြန်ချိတ်မည်", "Reconnect Google"))</button></div>
+            @if (string.IsNullOrWhiteSpace(setup.SpreadsheetId)) { <p class="mt-4 text-sm"><a href="/setup" class="font-semibold underline">@T("ဆိုင် Sheet အရင်ချိတ်ပါ", "Connect a shop Sheet first")</a></p> }
+            else if (!googleConnected) { <p class="mt-3 text-sm text-amber-800">@T("Token သက်တမ်းကုန် သို့မဟုတ် page reload ဖြစ်သည်။ ပြင်ဆင်မှုအားလုံးကို ရပ်ထားပြီး Reconnect Google ကို ကိုယ်တိုင်နှိပ်ရမည်။", "The token expired or the page was reloaded. Mutations are paused until you explicitly reconnect Google.")</p> }
+        </section>
+        <section class="space-y-3 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <label class="block text-sm font-medium">@T("ဖုန်းနံပါတ်၊ member token သို့မဟုတ် QR link", "Phone, member token or QR link")<input @bind="lookup" @bind:event="oninput" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+            <div class="flex flex-wrap gap-2"><button type="button" disabled="@(!googleConnected || busy)" @onclick="FindMember" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("Member ရှာမည်", "Find member")</button><button type="button" disabled="@(!googleConnected || busy)" @onclick="ScanQr" class="rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("QR scan မည်", "Scan QR")</button></div>
         </section>
         @if (showEnroll)
         {
-            <form @onsubmit="Enroll" @onsubmit:preventDefault class="space-y-4 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-sm font-semibold">New customer</h2><p class="text-xs text-zinc-500">No member found for @lookup. Add their name to create a card.</p><label for="newName" class="block text-xs font-medium">Customer name</label><input id="newName" required maxlength="100" @bind="newName" class="h-11 w-full rounded-xl border border-zinc-200 px-3 text-sm" /><button disabled="@busy" class="h-11 w-full rounded-xl bg-brand-700 text-xs font-medium text-white">Create member card</button></form>
+            <form @onsubmit="Enroll" @onsubmit:preventDefault class="space-y-3 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"><h2 class="font-semibold">@T("Member အသစ်", "New member")</h2><label class="block text-sm">Name<input required maxlength="100" @bind="newName" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label><button disabled="@busy" class="h-11 w-full rounded-xl bg-brand-700 text-sm font-semibold text-white">@T("Member ဖန်တီးမည်", "Create member")</button></form>
         }
         @if (member is not null)
         {
-            <section class="space-y-6 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm">
-                <div class="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 pb-4"><div><h2 class="text-base font-semibold">@member.Name</h2><p class="mt-0.5 text-sm text-zinc-600">@member.Phone</p></div><div><p class="text-sm text-zinc-600">Available cashback</p><p class="text-base font-semibold text-brand-800">@Money(member.AvailableCashback) MMK</p></div></div>
-                <div><div class="flex flex-wrap justify-between gap-2 text-sm"><span class="text-zinc-700">Stamp progress</span><span class="font-semibold">@member.Stamps of @setup.Policy.MaxStamps stamps</span></div><div role="progressbar" aria-label="Stamp progress" aria-valuemin="0" aria-valuemax="@setup.Policy.MaxStamps" aria-valuenow="@member.Stamps" class="mt-2 h-2 overflow-hidden rounded-full bg-brand-100"><div class="h-full rounded-full bg-brand-700" style="width: @(Math.Min(100, member.Stamps * 100 / Math.Max(1, setup.Policy.MaxStamps)))%"></div></div><p class="mt-2 text-sm text-zinc-700">Carried spend: @Money(member.SpendRemainder) MMK · Reward choices: @member.RewardCredits</p></div>
-                <div class="space-y-1"><label for="spend" class="text-xs text-zinc-500">Bill amount (MMK)</label><input id="spend" type="number" min="0" @bind="spend" class="h-10 w-full rounded-lg border border-zinc-200 px-3 font-mono text-sm" /></div>
-                <div class="grid gap-3 sm:grid-cols-2"><button type="button" disabled="@(busy || spend < 1)" @onclick="AddStamp" class="h-12 rounded-xl bg-brand-700 px-3 text-sm font-semibold text-white">Record purchase</button><button type="button" disabled="@(busy || member.AvailableCashback < setup.Policy.MinWithdrawal)" @onclick="ShowPayoutReview" class="h-12 rounded-xl border border-zinc-300 px-3 text-sm font-medium">Pay out @Money(member.AvailableCashback) MMK</button></div>
-                @if (confirmPayout)
+            <section class="space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div class="flex flex-wrap justify-between gap-3"><div><h2 class="text-lg font-semibold">@member.Name</h2><p class="text-sm text-zinc-600">@member.Phone</p></div><div class="text-right"><p class="text-xs text-zinc-600">Cashback</p><p class="font-semibold text-brand-800">@Money(member.AvailableCashback) MMK</p></div></div>
+                <p class="text-sm">@member.Stamps / @setup.Policy.MaxStamps stamps · @member.RewardCredits reward choices · @Money(member.SpendRemainder) MMK carried</p>
+                <label class="block text-sm">Bill amount (MMK)<input type="number" min="1" @bind="spend" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+                <button type="button" disabled="@(!googleConnected || busy || spend < 1)" @onclick="RecordPurchase" class="h-11 w-full rounded-xl bg-brand-700 text-sm font-semibold text-white">@T("ဝယ်ယူမှု မှတ်တမ်းတင်မည်", "Record purchase")</button>
+                @if (member.RewardCredits > 0)
                 {
-                    <div class="rounded-xl border border-brand-100 bg-brand-50 p-4" aria-labelledby="payout-title"><h3 id="payout-title" class="text-sm font-semibold">Record cashback payout?</h3><p class="mt-1 text-sm">This records a payout of @Money(member.AvailableCashback) MMK. Give the customer the cash after the confirmation appears.</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" disabled="@busy" @onclick="Withdraw" class="rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white">Record @Money(member.AvailableCashback) MMK payout</button><button type="button" @onclick="CancelPayoutReview" class="rounded-lg border border-zinc-300 px-4 text-sm">Cancel</button></div></div>
+                    <div class="space-y-2 border-t border-zinc-100 pt-4"><h3 class="font-semibold">@T("Reward ရွေးမည်", "Select reward")</h3>@foreach (var reward in setup.Rewards.Where(r => r.Active)) { <button type="button" disabled="@(busy || RemainingStock(reward) == 0)" @onclick="() => SelectReward(reward)" class="flex min-h-11 w-full items-center justify-between rounded-xl border border-zinc-200 px-3 text-left text-sm"><span>@reward.Name</span><span>@RewardLabel(reward)@(RemainingStock(reward) is int remaining ? $" · {remaining} left" : "")</span></button> }</div>
                 }
-                <p class="text-xs text-zinc-600">@Money(setup.Policy.MinSpendPerStamp) MMK per stamp. Minimum payout: @Money(setup.Policy.MinWithdrawal) MMK.</p>
-                @if (member.Claims.Any(c => c.Status == "Pending"))
+                @if (member.Claims.Any(c => c.Status.Equals("PENDING", StringComparison.OrdinalIgnoreCase)))
                 {
-                    <div class="space-y-3 border-t border-zinc-100 pt-4"><h3 class="text-xs font-semibold">Selected rewards to redeem</h3><p class="text-xs text-zinc-500">For a percentage discount, enter this bill amount above before redeeming.</p>
-                        @foreach (var claim in member.Claims.Where(c => c.Status == "Pending"))
-                        {
-                            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3 text-sm"><div><p class="font-medium">@claim.Name</p><p class="text-zinc-700">@(claim.Type == "PERCENT_DISCOUNT" ? $"{claim.Value}% off, up to {Money(claim.MaxDiscount)} MMK" : "Free item")</p></div><button type="button" disabled="@(busy || (claim.Type == "PERCENT_DISCOUNT" && spend < 1))" @onclick="() => RedeemReward(claim)" class="rounded-lg bg-brand-700 px-3 text-white">Redeem @claim.Name</button></div>
-                        }
-                    </div>
+                    <div class="space-y-2 border-t border-zinc-100 pt-4"><h3 class="font-semibold">@T("အသုံးပြုရန် Reward", "Rewards to redeem")</h3>@foreach (var claim in member.Claims.Where(c => c.Status.Equals("PENDING", StringComparison.OrdinalIgnoreCase))) { <button type="button" disabled="@(busy || (claim.Type == "PERCENT_DISCOUNT" && spend < 1))" @onclick="() => RedeemReward(claim)" class="flex min-h-11 w-full items-center justify-between rounded-xl border border-zinc-200 px-3 text-left text-sm"><span>@claim.Name</span><span>Redeem</span></button> }</div>
                 }
-                @if (memberLink.Length > 0)
-                {
-                    <div class="border-t border-zinc-100 pt-4"><h3 class="mb-2 text-sm font-semibold">Customer QR</h3><div id="memberQr" class="inline-block rounded-lg border border-zinc-200 p-2"></div><p class="mt-2 text-xs text-zinc-700">Share this QR code only with this customer. Anyone with the link can view the card and choose an earned reward.</p><button type="button" @onclick="CopyMemberUrl" class="mt-2 text-sm font-medium underline underline-offset-2">Copy member link</button></div>
-                }
+                <button type="button" disabled="@(busy || member.AvailableCashback < setup.Policy.MinWithdrawal)" @onclick="PayCashback" class="h-11 w-full rounded-xl border border-zinc-300 text-sm font-semibold">Pay @Money(member.AvailableCashback) MMK cashback</button>
+                <div class="border-t border-zinc-100 pt-4"><h3 class="font-semibold">Customer identifier QR</h3><div id="memberQr" class="mt-3 h-56 w-56 rounded-xl border border-zinc-200 p-2"></div><button type="button" @onclick="CopyMemberUrl" class="mt-2 block text-sm font-semibold underline">Copy member link</button><p class="mt-2 text-xs text-zinc-600">The link contains only the public shop ID and member token. It does not expose balance or personal details.</p></div>
             </section>
         }
-        <p class="flex flex-wrap justify-between gap-2 px-2 text-xs text-zinc-600"><span>Shop connected</span><span>@Money(setup.Policy.MinSpendPerStamp) MMK earns 1 stamp</span></p>
     </div>
 }
 else
 {
     <div class="space-y-6">
-        @if (member is null)
-        {
-            <section class="rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h1 class="text-xl font-semibold">Your member card</h1><p class="mt-2 text-sm text-zinc-700">@(page == "member" ? "We couldn't open this card. Check the link or ask your shop for a new QR code." : "Open the member QR link from your shop to see your stamps and cashback.")</p>@if (page != "member" && setup.GasUrl.Length == 0) { <a href="/setup" class="mt-4 inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-2">Set up your shop</a> }</section>
-        }
-        else
-        {
-            <section class="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><div><p class="text-sm font-medium text-zinc-600">@setup.ShopName</p><h1 class="mt-1 text-xl font-semibold">@member.Name</h1><p class="mt-0.5 text-sm text-zinc-600">@member.Phone</p></div><div><p class="text-sm text-zinc-600">Available cashback</p><p class="mt-0.5 text-xl font-semibold text-brand-800">@Money(member.AvailableCashback) <span class="text-sm font-normal text-zinc-600">MMK</span></p></div></section>
-            <section class="space-y-5 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><div class="flex flex-wrap items-start justify-between gap-2"><div><h2 class="text-base font-semibold">Stamp progress</h2><p class="mt-0.5 text-sm text-zinc-700">@(legacyMode ? $"Spend at least {Money(setup.Policy.MinSpendPerStamp)} MMK per visit to earn 1 stamp" : $"Every {Money(setup.Policy.MinSpendPerStamp)} MMK earns 1 stamp")</p></div><span class="shrink-0 rounded-md bg-reward/20 px-2.5 py-1 text-sm font-semibold text-brand-900">@member.Stamps of @setup.Policy.MaxStamps</span></div><div aria-hidden="true" class="grid grid-cols-5 gap-2 py-1 sm:grid-cols-10 sm:gap-3">@for (var i = 1; i <= setup.Policy.MaxStamps; i++) { var earned = i <= member.Stamps; <div class="flex aspect-square items-center justify-center rounded-full text-xs @(earned ? "bg-brand-700 font-bold text-white" : "border border-zinc-200 bg-zinc-50 text-zinc-600")">@(earned ? "✓" : i.ToString())</div> }</div><div class="flex flex-wrap justify-between gap-2 border-t border-zinc-100 pt-3 text-sm text-zinc-700"><span>@(legacyMode ? $"Next {Math.Max(0, setup.Policy.MaxStamps - member.Stamps)} visits earn {Money(setup.Policy.CashbackReward)} MMK cashback" : $"Carried spend: {Money(member.SpendRemainder)} MMK · Reward choices: {member.RewardCredits}")</span><span>Lifetime cashback: @Money(member.LifetimeCashback) MMK</span></div></section>
-            @if (member.RewardCredits > 0 && page == "member")
-            {
-                <section class="space-y-3 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-base font-semibold">Choose your reward</h2><p class="text-sm text-zinc-700">@(member.RewardCredits == 1 ? "You have 1 reward choice." : $"You have {member.RewardCredits} reward choices.") Each completed card earns one choice.</p>
-                    @if (!setup.Rewards.Any(r => r.Active && r.StockQuantity != 0))
-                    {
-                        <p class="text-xs text-zinc-500">No reward is available right now. Your choice stays on this card until the shop adds stock or enables a reward.</p>
-                    }
-                    @foreach (var reward in setup.Rewards.Where(r => r.Active))
-                    {
-                        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3"><div><p class="text-sm font-medium">@reward.Name</p><p class="text-sm text-zinc-700">@RewardLabel(reward)</p><p class="text-xs text-zinc-600">@(reward.StockQuantity == 0 ? "Sold out" : reward.StockQuantity is null ? reward.Description : $"{reward.StockQuantity} left · {reward.Description}")</p></div><button type="button" disabled="@(busy || reward.StockQuantity == 0)" @onclick="() => ReviewReward(reward)" class="rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white">@(reward.StockQuantity == 0 ? "Sold out" : $"Choose {reward.Name}")</button></div>
-                    }
-                    @if (rewardToConfirm is not null)
-                    {
-                        <div class="rounded-xl border border-brand-100 bg-brand-50 p-4" aria-labelledby="reward-review-title"><h3 id="reward-review-title" class="text-sm font-semibold">Use one choice for @rewardToConfirm.Name?</h3><p class="mt-1 text-sm">@RewardLabel(rewardToConfirm). This uses one of your reward choices.</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" disabled="@busy" @onclick="ConfirmRewardChoice" class="rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white">Confirm @rewardToConfirm.Name</button><button type="button" @onclick="CancelRewardReview" class="rounded-lg border border-zinc-300 px-4 text-sm">Cancel</button></div></div>
-                    }
-                </section>
-            }
-            @if (member.Claims.Any(c => c.Status == "Pending"))
-            {
-                <section class="space-y-2 rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-sm font-semibold">Rewards ready to use</h2>@foreach (var claim in member.Claims.Where(c => c.Status == "Pending")) { <p class="text-sm">Show this card to the cashier to use @claim.Name.</p> }</section>
-            }
-            <section class="rounded-2xl border border-zinc-200/70 bg-white p-6 shadow-sm"><h2 class="text-sm font-semibold">Activity history</h2>@if (member.History.Count == 0) { <p class="mt-4 text-sm text-zinc-700">Your purchases and rewards will appear here.</p> } else { <div class="mt-3 divide-y divide-zinc-100">@foreach (var item in member.History) { <div class="flex flex-wrap justify-between gap-3 py-3 text-sm"><div><p class="font-medium text-zinc-800">@ActionLabel(item.Action)</p><p class="mt-0.5 text-xs text-zinc-600">@item.Timestamp</p></div><span class="font-medium">@HistoryDelta(item)</span></div> }</div> }</section>
-        }
+        <section class="rounded-2xl border border-zinc-200 bg-white p-7 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Free · browser-direct · Google Sheets</p><h1 class="mt-2 text-2xl font-semibold">@T("ဆိုင်ဝန်ထမ်းများအတွက် ရိုးရှင်းသော loyalty workspace", "A simple loyalty workspace for shop staff")</h1><p class="mt-3 text-sm leading-7 text-zinc-700">@T("အမ်းသည် သင့် Google Sheet ကို browser မှ တိုက်ရိုက်သုံးသည်။ အမ်း server သည် token၊ ဆိုင် သို့မဟုတ် customer data ကို မသိမ်းပါ။", "Ahm works directly with your Google Sheet in the browser. Ahm servers do not persist tokens, shop records or customer records.")</p><div class="mt-5 flex flex-wrap gap-3"><a href="/setup" class="inline-flex min-h-11 items-center rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("ဆိုင်ချိတ်ဆက်မည်", "Connect a shop")</a><a href="/cashier" class="inline-flex min-h-11 items-center rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("Staff workspace", "Staff workspace")</a></div></section>
+        <section class="grid gap-3 sm:grid-cols-3"><div class="rounded-xl border border-zinc-200 bg-white p-4"><p class="font-semibold">No Apps Script</p><p class="mt-1 text-xs text-zinc-600">Create or choose a Sheet from mobile.</p></div><div class="rounded-xl border border-zinc-200 bg-white p-4"><p class="font-semibold">No Ahm database</p><p class="mt-1 text-xs text-zinc-600">Your Sheet remains the data store.</p></div><div class="rounded-xl border border-zinc-200 bg-white p-4"><p class="font-semibold">Staff-only details</p><p class="mt-1 text-xs text-zinc-600">Customer links reveal no private balance.</p></div></section>
     </div>
 }

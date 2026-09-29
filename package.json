@@ -1,11 +1,13 @@
 {
   "name": "ahm",
   "private": true,
+  "type": "module",
   "scripts": {
     "vendor": "node ./scripts/vendor.mjs",
     "css": "tailwindcss -i ./src/Ahm/Styles/app.css -o ./src/Ahm/wwwroot/css/app.css --minify",
     "test": "node --test tests/*.test.mjs",
-    "build": "npm run vendor && npm run css && dotnet publish ./src/Ahm/Ahm.csproj -c Release -o ./dist-publish && node ./scripts/copy-dist.mjs"
+    "clean": "node ./scripts/clean-build.mjs",
+    "build": "npm run clean && npm run vendor && npm run css && dotnet publish ./src/Ahm/Ahm.csproj -c Release -o ./dist-publish && node ./scripts/copy-dist.mjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.13",

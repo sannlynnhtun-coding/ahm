@@ -8,6 +8,6 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<Ahm.Services.BrowserStore>();
-builder.Services.AddScoped<Ahm.Services.SheetApi>();
+builder.Services.AddScoped<Ahm.Services.GoogleSheetsService>();
 
 await builder.Build().RunAsync();

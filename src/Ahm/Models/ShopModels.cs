@@ -1,11 +1,27 @@
 namespace Ahm.Models;
 
+public sealed class GooglePublicOptions
+{
+    public string ClientId { get; set; } = "";
+    public string ApiKey { get; set; } = "";
+    public string AppId { get; set; } = "";
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(AppId);
+}
+
 public sealed class ShopSetup
+{
+    public string SpreadsheetId { get; set; } = "";
+    public string PublicShopId { get; set; } = "";
+    public string ShopName { get; set; } = "";
+    public string StaffLabel { get; set; } = "";
+    public ShopPolicy Policy { get; set; } = new();
+    public List<ShopReward> Rewards { get; set; } = [ShopReward.DefaultCashback()];
+}
+
+public sealed class LegacyShopSetup
 {
     public string ShopName { get; set; } = "";
     public string GasUrl { get; set; } = "";
-    public ShopPolicy Policy { get; set; } = new();
-    public List<ShopReward> Rewards { get; set; } = [];
 }
 
 public sealed class ShopPolicy
@@ -34,14 +50,16 @@ public sealed class Member
 
 public sealed class ShopReward
 {
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = "Cashback";
     public string Type { get; set; } = "CASHBACK";
-    public int Value { get; set; }
+    public int Value { get; set; } = 10000;
     public int MaxDiscount { get; set; }
     public int? StockQuantity { get; set; }
     public string Description { get; set; } = "";
     public bool Active { get; set; } = true;
+
+    public static ShopReward DefaultCashback() => new();
 }
 
 public sealed class MemberReward
@@ -64,32 +82,37 @@ public sealed class Activity
     public string Timestamp { get; set; } = "";
 }
 
-public sealed class SheetResult
+public sealed class GoogleShopState
 {
-    public bool Ok { get; set; }
-    public int SchemaVersion { get; set; }
-    public string? Error { get; set; }
-    public Member? Member { get; set; }
-    public ShopPolicy? Policy { get; set; }
-    public List<ShopReward>? Rewards { get; set; }
-    public string? ShopName { get; set; }
-    public string? Code { get; set; }
-    public int Discount { get; set; }
+    public ShopSetup Setup { get; set; } = new();
+    public List<Member> Members { get; set; } = [];
+    public List<LedgerDiagnostic> Diagnostics { get; set; } = [];
+    public Dictionary<string, int> StockUsed { get; set; } = [];
 }
 
-public sealed class SheetRequest
+public sealed class LedgerDiagnostic
 {
-    public string Url { get; set; } = "";
-    public string Action { get; set; } = "";
-    public string? Pin { get; set; }
-    public string? Phone { get; set; }
-    public string? Name { get; set; }
-    public string? Token { get; set; }
-    public string? ShopName { get; set; }
-    public ShopPolicy? Policy { get; set; }
-    public List<ShopReward>? Rewards { get; set; }
-    public string? ClaimId { get; set; }
-    public int? Spend { get; set; }
-    public int? Amount { get; set; }
-    public string? RequestId { get; set; }
+    public int Row { get; set; }
+    public string EventId { get; set; } = "";
+    public string EventType { get; set; } = "";
+    public string Reason { get; set; } = "";
+}
+
+public sealed class GoogleConnectionState
+{
+    public bool Configured { get; set; }
+    public bool Connected { get; set; }
+    public long ExpiresAt { get; set; }
+}
+
+public sealed class LedgerEvent
+{
+    public string EventId { get; set; } = Guid.NewGuid().ToString("N");
+    public string EventType { get; set; } = "";
+    public string MemberToken { get; set; } = "";
+    public string PhoneNumber { get; set; } = "";
+    public string ActorLabel { get; set; } = "";
+    public string OccurredAtUtc { get; set; } = DateTimeOffset.UtcNow.ToString("O");
+    public object Payload { get; set; } = new { };
+    public int SchemaVersion { get; set; } = 3;
 }

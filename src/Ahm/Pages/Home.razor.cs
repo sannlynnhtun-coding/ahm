@@ -1,6 +1,7 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Ahm.Models;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
 
@@ -8,78 +9,77 @@ namespace Ahm.Pages;
 
 public partial class Home : IDisposable
 {
-    private bool loaded, busy, showEnroll, legacyMode, messageIsError, confirmPayout;
-    private string page = "", pin = "", lookup = "", newName = "", message = "", memberLink = "", memberCode = "", pendingRewardId = "", pendingClaimRequestId = "", pendingRedeemClaimId = "", pendingRedeemRequestId = "", payoutRequestId = "";
+    private static readonly Regex IdentifierPattern = new("^[A-Za-z0-9_-]{8,160}$", RegexOptions.Compiled);
+    private bool loaded, busy, messageIsError, googleConfigured, googleConnected, showEnroll, validMemberLink, burmese = true;
+    private string page = "", message = "", lookup = "", newName = "", legacyGasUrl = "", publicShopId = "", memberToken = "";
     private int spend;
-    private int? rewardNameFocusIndex;
     private ShopSetup setup = new();
+    private GoogleShopState state = new();
     private Member? member;
-    private ShopReward? rewardToConfirm;
+
+    private string Title => page switch
+    {
+        "setup" => "Shop setup | Ahm",
+        "cashier" => "Staff workspace | Ahm",
+        "member" => "Member identifier | Ahm",
+        "privacy" => "Privacy | Ahm",
+        "terms" => "Terms | Ahm",
+        _ => "Ahm | Google Sheets loyalty"
+    };
 
     protected override void OnInitialized() => Nav.LocationChanged += LocationChanged;
-
     protected override Task OnParametersSetAsync() => LoadAsync();
 
-    private void LocationChanged(object? sender, LocationChangedEventArgs args)
-    {
+    private void LocationChanged(object? sender, LocationChangedEventArgs args) =>
         _ = InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
-    }
 
     public void Dispose() => Nav.LocationChanged -= LocationChanged;
 
     private async Task LoadAsync()
     {
-        page = new Uri(Nav.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
         loaded = false;
+        page = new Uri(Nav.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
         message = "";
-        messageIsError = false;
-        confirmPayout = false;
-        legacyMode = false;
         member = null;
-        rewardToConfirm = null;
-        memberLink = "";
-        memberCode = "";
-        pendingRewardId = pendingClaimRequestId = "";
-        pendingRedeemClaimId = pendingRedeemRequestId = "";
-        payoutRequestId = "";
         showEnroll = false;
         try
         {
+            burmese = (await Store.GetLanguageAsync()) != "en";
+            setup = await Store.GetSetupAsync() ?? NewSetup();
+            var options = new GooglePublicOptions
+            {
+                ClientId = Configuration["Google:ClientId"] ?? "",
+                ApiKey = Configuration["Google:ApiKey"] ?? "",
+                AppId = Configuration["Google:AppId"] ?? ""
+            };
+            googleConfigured = options.IsConfigured;
+            var connection = await Sheets.ConfigureAsync(options);
+            googleConnected = connection.Connected;
+            var legacy = await Store.GetLegacySetupAsync();
+            legacyGasUrl = legacy?.GasUrl ?? legacyGasUrl;
+
             if (page == "member")
             {
-                setup = new ShopSetup();
-                pin = "";
                 var uri = new Uri(Nav.Uri);
-                var code = Query(uri, "c");
-                var shop = Query(uri, "s");
-                var token = Query(uri, "t");
-                if (!string.IsNullOrWhiteSpace(code))
+                var legacyCode = Query(uri, "c");
+                if (!string.IsNullOrWhiteSpace(legacyCode))
                 {
-                    var result = await Api.GetMemberAsync(code);
-                    legacyMode = result.SchemaVersion < 2;
-                    memberCode = code;
-                    setup.ShopName = result.ShopName ?? setup.ShopName;
-                    setup.Policy = result.Policy ?? setup.Policy;
-                    setup.Rewards = result.Rewards ?? [];
-                    member = result.Member;
-                }
-                else if (!string.IsNullOrWhiteSpace(shop) && !string.IsNullOrWhiteSpace(token))
-                {
-                    code = await Api.CreateMemberLinkAsync(shop, token);
-                    Nav.NavigateTo("/member?c=" + Uri.EscapeDataString(code), replace: true);
+                    Nav.NavigateTo("/api/member?code=" + Uri.EscapeDataString(legacyCode), forceLoad: true);
                     return;
                 }
-            }
-            else
-            {
-                setup = await Store.GetSetupAsync() ?? new ShopSetup { Rewards = [new ShopReward { Name = "Cashback", Type = "CASHBACK", Value = 10000 }] };
-                setup.Policy = await Store.GetPolicyAsync() ?? setup.Policy;
-                if (page == "" && !string.IsNullOrWhiteSpace(setup.GasUrl)) member = await Store.GetCachedMemberAsync();
-                if (page == "cashier" && string.IsNullOrWhiteSpace(setup.GasUrl))
+                publicShopId = Query(uri, "s");
+                memberToken = Query(uri, "t");
+                if (ValidLegacyUrl(publicShopId) && Regex.IsMatch(memberToken, "^[0-9a-f-]{36}$", RegexOptions.IgnoreCase))
                 {
-                    page = "setup";
-                    Nav.NavigateTo("/setup");
+                    var path = await Sheets.ResolveLegacyPathAsync(publicShopId, memberToken);
+                    Nav.NavigateTo(path, replace: true);
+                    return;
                 }
+                validMemberLink = IdentifierPattern.IsMatch(publicShopId) && IdentifierPattern.IsMatch(memberToken);
+            }
+            else if (page == "cashier" && string.IsNullOrWhiteSpace(setup.SpreadsheetId))
+            {
+                message = T("Staff workspace သုံးရန် ဆိုင် Sheet ကို အရင်ချိတ်ပါ။", "Connect a shop Sheet before using the staff workspace.");
             }
         }
         catch (Exception ex) { SetError(ex); }
@@ -88,225 +88,264 @@ public partial class Home : IDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (member is not null && memberLink.Length > 0 && page == "cashier")
-            await Js.InvokeVoidAsync("ahmQr.render", "memberQr", MemberUrl());
-        if (rewardNameFocusIndex is int index)
+        if (page == "member" && validMemberLink)
+            await Js.InvokeVoidAsync("ahmQr.render", "publicMemberQr", Nav.Uri);
+        if (page == "cashier" && member is not null)
+            await Js.InvokeVoidAsync("ahmQr.render", "memberQr", MemberUrl(member));
+    }
+
+    private static ShopSetup NewSetup() => new()
+    {
+        Rewards = [new ShopReward { Name = "Cashback", Type = "CASHBACK", Value = 10000 }]
+    };
+
+    private async Task ToggleLanguage()
+    {
+        burmese = !burmese;
+        await Store.SaveLanguageAsync(burmese ? "my" : "en");
+    }
+
+    private string T(string myanmar, string english) => burmese ? myanmar : english;
+
+    private async Task ConnectGoogle()
+    {
+        if (busy) return;
+        await Run(async () =>
         {
-            rewardNameFocusIndex = null;
-            await Js.InvokeVoidAsync("ahmUi.focusById", $"reward-name-{index}");
-        }
-    }
-
-    private async Task SaveSetup()
-    {
-        if (busy) return;
-        if (!Uri.TryCreate(setup.GasUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != "script.google.com" || !uri.AbsolutePath.EndsWith("/exec") || string.IsNullOrWhiteSpace(pin)) { SetError("Enter your Apps Script URL ending in /exec and the cashier PIN."); return; }
-        if (string.IsNullOrWhiteSpace(setup.ShopName) || setup.Policy.MinSpendPerStamp < 1 || setup.Policy.MaxStamps is < 1 or > 30 || setup.Policy.CashbackReward < 1 || setup.Policy.MinWithdrawal < 1) { SetError("Enter a shop name and valid stamp and payout amounts."); return; }
-        if (setup.Rewards.Count == 0 || setup.Rewards.All(r => !r.Active)) { SetError("Add and enable at least one reward."); return; }
-        setup.Policy.AllowRollover = true;
-        await Run(async () => {
-            await Api.CheckVersionAsync(setup.GasUrl);
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "configure", Pin = pin, ShopName = setup.ShopName.Trim(), Policy = setup.Policy, Rewards = setup.Rewards });
-            setup.Policy = result.Policy ?? setup.Policy;
-            setup.Rewards = result.Rewards ?? setup.Rewards;
-            await Store.SaveSetupAsync(setup);
-            await Store.SavePolicyAsync(setup.Policy);
-            Nav.NavigateTo("/cashier");
+            await Sheets.AuthorizeAsync();
+            googleConnected = true;
+            if (!string.IsNullOrWhiteSpace(setup.SpreadsheetId))
+            {
+                await ApplyState(await Sheets.LoadShopAsync(setup.SpreadsheetId, setup.StaffLabel));
+                await OpenRequestedMemberAsync();
+            }
+            message = T("Google ကို ဤ session အတွက် ချိတ်ပြီးပါပြီ။", "Google is connected for this session.");
         });
     }
 
-    private async Task RefreshSettings()
+    private async Task CreateShop()
     {
-        if (busy) return;
-        if (string.IsNullOrWhiteSpace(pin) || string.IsNullOrWhiteSpace(setup.GasUrl)) { SetError("Enter the Apps Script URL and cashier PIN before loading settings."); return; }
-        await Run(async () => {
-            await Api.CheckVersionAsync(setup.GasUrl);
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "find", Pin = pin });
-            await SyncSettingsAsync(result);
-            message = "Latest settings loaded from Sheet.";
+        if (!googleConnected || busy) return;
+        if (string.IsNullOrWhiteSpace(setup.ShopName)) { SetError(T("ဆိုင်အမည် ထည့်ပါ။", "Enter a shop name.")); return; }
+        await Run(async () =>
+        {
+            await ApplyState(await Sheets.CreateShopAsync(setup));
+            message = T("Ahm Sheet အသစ်ဖန်တီးပြီး ချိတ်ထားပါပြီ။", "The new Ahm Sheet was created and connected.");
         });
     }
 
-    private void AddReward()
+    private async Task ConnectExisting()
     {
-        setup.Rewards.Add(new ShopReward { Type = "FREE_ITEM" });
-        rewardNameFocusIndex = setup.Rewards.Count - 1;
+        if (!googleConnected || busy) return;
+        await Run(async () =>
+        {
+            await ApplyState(await Sheets.ConnectExistingAsync(setup.StaffLabel));
+            message = T("ရွေးထားသော Sheet ကို ချိတ်ပြီးပါပြီ။", "The selected Sheet is connected.");
+        });
     }
-    private async Task RemoveReward(ShopReward reward)
+
+    private async Task SaveSettings()
     {
-        if (string.IsNullOrEmpty(reward.Id)) setup.Rewards.Remove(reward);
-        else reward.Active = false;
-        await Js.InvokeVoidAsync("ahmUi.focusById", "add-reward");
+        if (!googleConnected || busy) return;
+        if (string.IsNullOrWhiteSpace(setup.ShopName) || setup.Policy.MinSpendPerStamp < 1 || setup.Policy.MaxStamps is < 1 or > 30 || setup.Policy.MinWithdrawal < 1)
+        { SetError(T("Shop setting များကို ပြန်စစ်ပါ။", "Check the shop settings.")); return; }
+        if (!setup.Rewards.Any(reward => reward.Active)) { SetError(T("Active reward အနည်းဆုံးတစ်ခု လိုပါသည်။", "At least one active reward is required.")); return; }
+        await Run(async () =>
+        {
+            await ApplyState(await Sheets.SaveConfigurationAsync(setup));
+            message = T("Setting များကို Sheet သို့ သိမ်းပြီးပါပြီ။", "Settings were saved to the Sheet.");
+        });
+    }
+
+    private void AddReward() => setup.Rewards.Add(new ShopReward { Name = "New reward", Type = "FREE_ITEM", Value = 0 });
+    private void DisableReward(ShopReward reward)
+    {
+        if (reward.Active) reward.Active = false;
+        else setup.Rewards.Remove(reward);
+    }
+
+    private async Task MigrateLegacy()
+    {
+        if (!googleConnected || busy) return;
+        if (!ValidLegacyUrl(legacyGasUrl)) { SetError(T("မှန်ကန်သော legacy /exec URL ထည့်ပါ။", "Enter a valid legacy /exec URL.")); return; }
+        await Run(async () =>
+        {
+            await ApplyState(await Sheets.MigrateLegacyAsync(legacyGasUrl, setup.StaffLabel));
+            message = T("Migration ပြီးပါပြီ။ Old Sheet ကို archive အဖြစ်ထားပြီး tabs များကို Legacy_ ဟု အမည်ပြောင်းထားသည်။", "Migration is complete. The old Sheet remains as an archive and its tabs were renamed with Legacy_.");
+        });
     }
 
     private async Task FindMember()
     {
-        if (busy) return;
-        if (string.IsNullOrWhiteSpace(lookup)) { SetError("Enter a phone number or member QR link."); return; }
-        if (string.IsNullOrWhiteSpace(pin)) { SetError("Enter your cashier PIN first."); return; }
-        await Run(async () => {
-            var value = lookup.Trim();
-            var isUrl = Uri.TryCreate(value, UriKind.Absolute, out var url);
-            var code = isUrl ? Query(url!, "c") : "";
-            var token = isUrl ? Query(url!, "t") : (Guid.TryParse(value, out _) ? value : "");
-            var result = code.Length > 0
-                ? await Api.FindMemberByCodeAsync(code, setup.GasUrl, pin)
-                : await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "find", Pin = pin, Phone = token.Length == 0 ? value : null, Token = token.Length > 0 ? token : null });
-            member = result.Member;
-            await SyncSettingsAsync(result);
-            pendingRedeemClaimId = pendingRedeemRequestId = "";
-            payoutRequestId = "";
-            confirmPayout = false;
-            showEnroll = member is null && token.Length == 0 && code.Length == 0;
-            if (member is not null) await Store.SaveCachedMemberAsync(member);
-            message = member is null ? "No customer found. Check the number or create a member card below." : "Customer card loaded.";
-            if (member is not null) await PrepareMemberLinkAsync();
+        if (!googleConnected || busy || string.IsNullOrWhiteSpace(setup.SpreadsheetId)) return;
+        if (string.IsNullOrWhiteSpace(lookup)) { SetError(T("ဖုန်း၊ token သို့မဟုတ် QR link ထည့်ပါ။", "Enter a phone, token or QR link.")); return; }
+        await Run(async () =>
+        {
+            await ApplyState(await Sheets.LoadShopAsync(setup.SpreadsheetId, setup.StaffLabel));
+            var (shop, token, phone) = ParseLookup(lookup);
+            if (shop.Length > 0 && shop != setup.PublicShopId) throw new InvalidOperationException("QR_SHOP_MISMATCH");
+            member = token.Length > 0
+                ? state.Members.FirstOrDefault(item => item.Token == token)
+                : state.Members.FirstOrDefault(item => NormalizePhone(item.Phone) == NormalizePhone(phone));
+            showEnroll = member is null && token.Length == 0 && phone.Length > 0;
+            if (member is not null)
+            {
+                message = T("Member ကို Sheet မှ sync လုပ်ပြီးပါပြီ။", "Member synced from the Sheet.");
+            }
+            else message = showEnroll ? T("Member မတွေ့ပါ။ အသစ်ဖန်တီးနိုင်သည်။", "No member found. You can create one.") : T("Member token မတွေ့ပါ။", "Member token was not found.");
         });
     }
 
-    private async Task LookupKeyDown(KeyboardEventArgs e) { if (e.Key == "Enter") await FindMember(); }
+    private async Task OpenRequestedMemberAsync()
+    {
+        if (page != "cashier") return;
+        var uri = new Uri(Nav.Uri);
+        var token = Query(uri, "t");
+        var shop = Query(uri, "s");
+        if (token.Length == 0) return;
+        lookup = Nav.Uri;
+        if (shop != setup.PublicShopId) throw new InvalidOperationException("QR_SHOP_MISMATCH");
+        member = state.Members.FirstOrDefault(item => item.Token == token);
+    }
 
     private async Task Enroll()
     {
-        if (busy || string.IsNullOrWhiteSpace(newName) || string.IsNullOrWhiteSpace(pin)) return;
-        await Run(async () => {
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "enroll", Pin = pin, Phone = lookup.Trim(), Name = newName.Trim(), RequestId = Guid.NewGuid().ToString("N") });
-            member = result.Member;
-            await SyncSettingsAsync(result);
+        if (!googleConnected || busy || string.IsNullOrWhiteSpace(newName)) return;
+        var (_, token, phone) = ParseLookup(lookup);
+        if (token.Length > 0 || string.IsNullOrWhiteSpace(NormalizePhone(phone))) { SetError(T("မှန်ကန်သော ဖုန်းနံပါတ် ထည့်ပါ။", "Enter a valid phone number.")); return; }
+        var candidate = new Member { Token = Guid.NewGuid().ToString("N"), Phone = NormalizePhone(phone), Name = newName.Trim() };
+        var eventId = Guid.NewGuid().ToString("N");
+        await Run(async () =>
+        {
+            await ApplyState(await Sheets.AppendEventAsync(setup, "MEMBER_ENROLLED", candidate, new { name = candidate.Name, phone = candidate.Phone }, eventId));
+            ThrowIfRejected(eventId);
+            member = state.Members.FirstOrDefault(item => item.Token == candidate.Token);
             showEnroll = false;
-            if (member is not null) await Store.SaveCachedMemberAsync(member);
-            message = "Member card created.";
-            if (member is not null) await PrepareMemberLinkAsync();
+            message = T("Member အသစ်ကို ledger တွင် ထည့်ပြီးပါပြီ။", "The new member was appended to the ledger.");
         });
     }
 
-    private async Task AddStamp()
+    private async Task RecordPurchase()
     {
-        if (member is null || busy || spend < 1) return;
-        await Run(async () => {
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "stamp", Pin = pin, Phone = member.Phone, Spend = spend, RequestId = Guid.NewGuid().ToString("N") });
-            member = result.Member;
-            await SyncSettingsAsync(result);
-            if (member is not null) await Store.SaveCachedMemberAsync(member);
-            confirmPayout = false;
-            payoutRequestId = "";
-            message = "Purchase and stamps synced to Sheet.";
-        });
+        if (member is null || spend < 1 || !googleConnected || busy) return;
+        var current = member;
+        var policy = new
+        {
+            minSpendPerStamp = setup.Policy.MinSpendPerStamp,
+            maxStamps = setup.Policy.MaxStamps,
+            cashbackReward = setup.Policy.CashbackReward,
+            minWithdrawal = setup.Policy.MinWithdrawal,
+            allowRollover = setup.Policy.AllowRollover
+        };
+        await AppendForMember("PURCHASE_RECORDED", current, new { amount = spend, policy }, T("ဝယ်ယူမှုကို ledger တွင် ထည့်ပြီးပါပြီ။", "Purchase appended to the ledger."));
     }
 
     private async Task SelectReward(ShopReward reward)
     {
-        if (member is null || member.RewardCredits < 1 || reward.StockQuantity == 0 || busy || memberCode.Length == 0) return;
-        if (pendingRewardId.Length > 0 && pendingRewardId != reward.Id) { SetError("Refresh the card before choosing a different reward."); return; }
-        pendingRewardId = reward.Id;
-        if (pendingClaimRequestId.Length == 0) pendingClaimRequestId = Guid.NewGuid().ToString("N");
-        await Run(async () => {
-            var result = await Api.ClaimRewardAsync(memberCode, reward.Id, pendingClaimRequestId);
-            member = result.Member;
-            setup.Policy = result.Policy ?? setup.Policy;
-            setup.Rewards = result.Rewards ?? setup.Rewards;
-            pendingRewardId = pendingClaimRequestId = "";
-            rewardToConfirm = null;
-            message = reward.Type == "CASHBACK" ? "Cashback added to your balance." : "Reward selected. Show it to the cashier when using it.";
+        if (member is null || member.RewardCredits < 1 || reward.StockQuantity == 0 || busy) return;
+        var snapshot = new
+        {
+            id = reward.Id, name = reward.Name, type = reward.Type, value = reward.Value,
+            maxDiscount = reward.MaxDiscount, stockQuantity = reward.StockQuantity,
+            description = reward.Description, active = reward.Active
+        };
+        await AppendForMember("REWARD_SELECTED", member, new { claimId = Guid.NewGuid().ToString("N"), reward = snapshot }, T("Reward ရွေးချယ်မှုကို ledger တွင် ထည့်ပြီးပါပြီ။", "Reward selection appended to the ledger."));
+    }
+
+    private async Task RedeemReward(MemberReward claim)
+    {
+        if (member is null || busy) return;
+        await AppendForMember("REWARD_REDEEMED", member, new { claimId = claim.Id, billAmount = spend }, T("Reward အသုံးပြုမှုကို မှတ်တမ်းတင်ပြီးပါပြီ။", "Reward redemption was recorded."));
+    }
+
+    private async Task PayCashback()
+    {
+        if (member is null || member.AvailableCashback < setup.Policy.MinWithdrawal || busy) return;
+        await AppendForMember("CASHBACK_PAID", member, new { amount = member.AvailableCashback, minWithdrawal = setup.Policy.MinWithdrawal }, T("Cashback payout ကို မှတ်တမ်းတင်ပြီးပါပြီ။", "Cashback payout was recorded."));
+    }
+
+    private async Task AppendForMember(string eventType, Member current, object payload, string success)
+    {
+        if (!googleConnected) { SetError(T("Google ကို ပြန်ချိတ်ပါ။", "Reconnect Google.")); return; }
+        await Run(async () =>
+        {
+            var eventId = Guid.NewGuid().ToString("N");
+            await ApplyState(await Sheets.AppendEventAsync(setup, eventType, current, payload, eventId));
+            ThrowIfRejected(eventId);
+            member = state.Members.FirstOrDefault(item => item.Token == current.Token);
+            message = success;
         });
     }
 
-    private void ReviewReward(ShopReward reward) => rewardToConfirm = reward;
-    private void CancelRewardReview() => rewardToConfirm = null;
-    private Task ConfirmRewardChoice() => rewardToConfirm is null ? Task.CompletedTask : SelectReward(rewardToConfirm);
-
-    private async Task RedeemReward(MemberReward reward)
+    private async Task ApplyState(GoogleShopState next)
     {
-        if (member is null || reward.Status != "Pending" || busy) return;
-        if (pendingRedeemClaimId.Length > 0 && pendingRedeemClaimId != reward.Id) { SetError("Refresh the card before redeeming a different reward."); return; }
-        pendingRedeemClaimId = reward.Id;
-        if (pendingRedeemRequestId.Length == 0) pendingRedeemRequestId = Guid.NewGuid().ToString("N");
-        await Run(async () => {
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "redeem", Pin = pin, Phone = member.Phone, ClaimId = reward.Id, Spend = spend, RequestId = pendingRedeemRequestId });
-            member = result.Member;
-            await SyncSettingsAsync(result);
-            if (member is not null) await Store.SaveCachedMemberAsync(member);
-            pendingRedeemClaimId = pendingRedeemRequestId = "";
-            if (reward.Type == "PERCENT_DISCOUNT") spend = Math.Max(0, spend - result.Discount);
-            message = reward.Type == "PERCENT_DISCOUNT" ? $"Apply {Money(result.Discount)} MMK discount. Paid amount: {Money(spend)} MMK." : "Free item marked as given.";
-        });
-    }
-
-    private async Task Withdraw()
-    {
-        if (!confirmPayout || member is null || busy || member.AvailableCashback < setup.Policy.MinWithdrawal) return;
-        await Run(async () => {
-            var result = await Api.SendAsync(new SheetRequest { Url = setup.GasUrl, Action = "withdraw", Pin = pin, Phone = member.Phone, Amount = member.AvailableCashback, RequestId = payoutRequestId });
-            member = result.Member;
-            await SyncSettingsAsync(result);
-            if (member is not null) await Store.SaveCachedMemberAsync(member);
-            confirmPayout = false;
-            payoutRequestId = "";
-            message = "Cashback payout recorded. Pay the customer now.";
-        });
-    }
-
-    private void ShowPayoutReview()
-    {
-        if (member is null || member.AvailableCashback < setup.Policy.MinWithdrawal) return;
-        if (payoutRequestId.Length == 0) payoutRequestId = Guid.NewGuid().ToString("N");
-        confirmPayout = true;
-    }
-    private void CancelPayoutReview() => confirmPayout = false;
-
-    private async Task SyncSettingsAsync(SheetResult result)
-    {
-        setup.Policy = result.Policy ?? setup.Policy;
-        setup.Rewards = result.Rewards ?? setup.Rewards;
-        setup.ShopName = result.ShopName ?? setup.ShopName;
+        var localLabel = setup.StaffLabel;
+        state = next;
+        setup = next.Setup;
+        if (string.IsNullOrWhiteSpace(setup.StaffLabel)) setup.StaffLabel = localLabel;
         await Store.SaveSetupAsync(setup);
-        await Store.SavePolicyAsync(setup.Policy);
     }
 
     private async Task ScanQr()
     {
         try { lookup = await Js.InvokeAsync<string>("ahmQr.scan"); await FindMember(); }
-        catch (Exception ex) when (ex.Message.Contains("Scanning cancelled")) { }
-        catch (Exception ex) { SetError(ex.Message.Contains("BarcodeDetector") ? "Camera scanning is not supported here. Paste the QR link or token." : "Couldn't scan the QR code. Try again or paste the member link."); }
+        catch (Exception ex) when (ex.Message.Contains("cancel", StringComparison.OrdinalIgnoreCase)) { }
+        catch (Exception ex) { SetError(ex.Message.Contains("BarcodeDetector") ? T("ဤ browser တွင် camera QR scan မရပါ။ Link ကို paste လုပ်ပါ။", "Camera QR scanning is unavailable here. Paste the link instead.") : T("QR ဖတ်မရပါ။", "The QR could not be read.")); }
     }
 
     private async Task CopyMemberUrl()
     {
-        try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", MemberUrl()); message = "Member link copied. Share it only with this customer."; messageIsError = false; }
-        catch { SetError("Couldn't copy the member link. Try again or show the QR code."); }
+        if (member is null) return;
+        try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", MemberUrl(member)); message = T("Member link copy လုပ်ပြီးပါပြီ။", "Member link copied."); messageIsError = false; }
+        catch { SetError(T("Link copy မလုပ်နိုင်ပါ။", "The link could not be copied.")); }
     }
-    private async Task PrepareMemberLinkAsync()
+
+    private string MemberUrl(Member value) => $"{Nav.BaseUri.TrimEnd('/')}/member?s={Uri.EscapeDataString(setup.PublicShopId)}&t={Uri.EscapeDataString(value.Token)}";
+
+    private static (string Shop, string Token, string Phone) ParseLookup(string input)
     {
-        try { memberLink = await Api.CreateMemberLinkAsync(setup.GasUrl, member!.Token); }
-        catch { memberLink = ""; SetError("Customer card loaded, but its QR link could not be created. Try finding the customer again."); }
+        var candidate = input.Trim();
+        if (Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
+            return (Query(uri, "s"), Query(uri, "t"), "");
+        return IdentifierPattern.IsMatch(candidate) && candidate.Length >= 20 ? ("", candidate, "") : ("", "", candidate);
     }
-    private async Task CopyScript()
-    {
-        try { await Js.InvokeVoidAsync("ahmSetup.copyScript"); message = "Apps Script code copied. Paste it into Code.gs."; messageIsError = false; }
-        catch { SetError("Couldn't copy the script. Open the code file and copy it manually."); }
-    }
-    private string MemberUrl() => memberLink.Length == 0 ? "" : Nav.BaseUri.TrimEnd('/') + "/member?c=" + Uri.EscapeDataString(memberLink);
-    private static string Money(int value) => value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
-    private string ActionLabel(string action) => action switch { "STAMP_ADD" => legacyMode ? "Stamp Added" : "Stamps Earned", "CARD_COMPLETE" => legacyMode ? "Card Completed" : "Reward Choice Earned", "REWARD_SELECTED" => "Reward Selected", "REWARD_REDEEM" => "Reward Redeemed", "CASHBACK_PAYOUT" => "Cashback Paid Out", _ => action };
-    private static string RewardLabel(ShopReward reward) => reward.Type switch { "CASHBACK" => $"{Money(reward.Value)} MMK cashback", "PERCENT_DISCOUNT" => $"{reward.Value}% off (up to {Money(reward.MaxDiscount)} MMK)", _ => "Free item" };
-    private string HistoryDelta(Activity item) => item.Action switch
-    {
-        "STAMP_ADD" when legacyMode => "+1 stamp",
-        "CARD_COMPLETE" when legacyMode => "+" + Money(item.Delta) + " MMK",
-        "STAMP_ADD" => $"+{item.Delta} stamp(s)",
-        "CARD_COMPLETE" => $"+{item.Delta} choice(s)",
-        "REWARD_SELECTED" when item.Delta == 0 => "Reward chosen",
-        "REWARD_REDEEM" when item.Delta == 0 => "Used",
-        _ => (item.Delta >= 0 ? "+" : "") + Money(item.Delta) + " MMK"
-    };
+
+    private static string NormalizePhone(string value) => new(value.Where(character => char.IsDigit(character) || character == '+').ToArray());
     private static string Query(Uri uri, string key) => uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries).Select(part => part.Split('=', 2)).Where(pair => Uri.UnescapeDataString(pair[0]) == key).Select(pair => pair.Length > 1 ? Uri.UnescapeDataString(pair[1]) : "").FirstOrDefault() ?? "";
-    private async Task DismissMessage()
+    private static bool ValidLegacyUrl(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == "https" && uri.Host == "script.google.com" && uri.AbsolutePath.EndsWith("/exec", StringComparison.Ordinal);
+    private static string Money(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
+    private static string RewardLabel(ShopReward reward) => reward.Type switch { "CASHBACK" => $"{Money(reward.Value)} MMK", "PERCENT_DISCOUNT" => $"{reward.Value}% (cap {Money(reward.MaxDiscount)})", _ => "Free item" };
+    private int? RemainingStock(ShopReward reward) => reward.StockQuantity is int cap ? Math.Max(0, cap - state.StockUsed.GetValueOrDefault(reward.Id)) : null;
+    private void ThrowIfRejected(string eventId)
     {
-        message = "";
-        messageIsError = false;
-        await Js.InvokeVoidAsync("ahmUi.focusById", "main-content");
+        // An uncertain network retry may append the same row twice. The first row is authoritative;
+        // a later DUPLICATE_EVENT_ID diagnostic therefore means idempotent success, not rejection.
+        var rejection = state.Diagnostics.FirstOrDefault(item => item.EventId == eventId && item.Reason != "DUPLICATE_EVENT_ID");
+        if (rejection is not null) throw new InvalidOperationException($"EVENT_REJECTED:{rejection.Reason}");
     }
-    private void SetError(string text) { message = text; messageIsError = true; }
-    private void SetError(Exception ex) => SetError(ex is HttpRequestException or TaskCanceledException ? "Couldn't reach the shop. Check your connection and try again." : ex.Message);
-    private async Task Run(Func<Task> action) { busy = true; message = ""; messageIsError = false; try { await action(); } catch (Exception ex) { SetError(ex); } finally { busy = false; } }
+
+    private void DismissMessage() { message = ""; messageIsError = false; }
+    private void SetError(string value) { message = value; messageIsError = true; }
+    private void SetError(Exception exception)
+    {
+        var value = exception.Message;
+        if (value.Contains("AUTH_EXPIRED")) { googleConnected = false; value = T("Google session သက်တမ်းကုန်သွားသည်။ Reconnect Google ကို နှိပ်ပါ။", "The Google session expired. Click Reconnect Google."); }
+        else if (value.Contains("PICKER_CANCELLED")) value = T("Sheet ရွေးချယ်မှု ပယ်ဖျက်ခဲ့သည်။", "Sheet selection was cancelled.");
+        else if (value.Contains("SCHEMA_MISMATCH")) value = T("ဤ Sheet သည် Ahm schema v3 မဟုတ်ပါ။ Migration ကို သုံးပါ။", "This is not an Ahm schema v3 Sheet. Use migration instead.");
+        else if (value.Contains("SHEET_NOT_EDITABLE")) value = T("ဤ Sheet တွင် Editor access လိုပါသည်။", "Editor access to this Sheet is required.");
+        else if (value.Contains("QR_SHOP_MISMATCH")) value = T("ဤ QR သည် ချိတ်ထားသော ဆိုင်နှင့် မကိုက်ပါ။", "This QR belongs to a different shop.");
+        else if (value.Contains("EVENT_REJECTED:REWARD_SOLD_OUT")) value = T("ဤ reward ကို အခြားဝန်ထမ်းက ရွေးပြီး stock ကုန်သွားပါပြီ။", "Another staff member took the last available reward.");
+        else if (value.Contains("EVENT_REJECTED:INSUFFICIENT")) value = T("လက်ကျန် မလုံလောက်သဖြင့် event ကို ledger က ပယ်ချခဲ့သည်။", "The ledger rejected the event because the balance is insufficient.");
+        else if (value.Contains("EVENT_REJECTED:DUPLICATE")) value = T("ထပ်နေသောလုပ်ဆောင်ချက်ကို ledger က လျစ်လျူရှုခဲ့သည်။", "The ledger ignored the duplicate operation.");
+        else if (value.Contains("GOOGLE_CONFIG_MISSING")) value = "Google OAuth public configuration is missing.";
+        SetError(value);
+    }
+
+    private async Task Run(Func<Task> action)
+    {
+        busy = true; message = ""; messageIsError = false;
+        try { await action(); }
+        catch (Exception ex) { SetError(ex); }
+        finally { busy = false; }
+    }
 }
