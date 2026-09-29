@@ -1,10 +1,73 @@
 # အမ်း (Ahm)
 
-.NET 10 standalone Blazor WebAssembly loyalty app styled with Tailwind CSS. The interface follows `ahm-ui-sample.html`. Each shop's records live in its own Google Sheet. The static app runs on Vercel; one small Vercel Function relays requests to Google Apps Script so browser CORS and Content Service redirects cannot hide write results.
+Ahm is a .NET 10 static Blazor WebAssembly loyalty workspace for shop owners and staff. It connects a mobile browser directly to a shop-owned Google Sheet. New shops use no Apps Script deployment, cashier PIN, service account, Ahm database, or server-side Google session.
 
-## Run locally
+## Privacy boundary
 
-Install .NET 10 SDK and Node.js, then run:
+- Google Identity Services issues the `drive.file` access token directly to the browser.
+- The token exists only in JavaScript/.NET runtime memory. Ahm never writes it to IndexedDB, LocalStorage, URLs, logs, or an Ahm server.
+- The browser calls Google Sheets and Drive APIs directly. Ahm servers do not persist shop or customer records.
+- IndexedDB stores only the selected Sheet ID, public shop ID, display settings, local staff label, and language preference. OAuth tokens and member records are not written there by v3.
+- A static host or CDN can still process standard access logs under its own terms. The legacy redirect transiently decrypts old QR codes without storing request or customer data.
+
+## Google Cloud setup (maintainer, once)
+
+1. Create a Google Cloud project and enable **Google Sheets API**, **Google Drive API**, and **Google Picker API**.
+2. Configure the OAuth consent/brand screen, verified production domain, `/privacy`, and `/terms`. Add test users while the project is in testing, then complete the required production brand verification.
+3. Create a **Web application** OAuth client. Add each Ahm origin under **Authorized JavaScript origins**. No client secret is shipped and a redirect URI is not used by the token client.
+4. Create a browser API key. Restrict it to the Ahm HTTPS origins and to the Drive/Picker APIs required by Picker.
+5. Copy the OAuth client ID, browser API key, and numeric project number into [`src/Ahm/wwwroot/appsettings.json`](src/Ahm/wwwroot/appsettings.json):
+
+```json
+{
+  "Google": {
+    "ClientId": "...apps.googleusercontent.com",
+    "ApiKey": "...",
+    "AppId": "123456789012"
+  }
+}
+```
+
+These values are public browser configuration, not secrets. The OAuth request uses only `https://www.googleapis.com/auth/drive.file`. Google’s current consent wording should be shown alongside Ahm’s localized explanation.
+
+## Shop flow
+
+On `/setup`, an owner or staff member clicks **Connect Google**, then either:
+
+- **Create new Ahm Sheet** — Sheets API creates and initializes the five v3 tabs; or
+- **Connect existing Sheet** — Google Picker grants/selects a v3 Sheet already shared with that account.
+
+Every Google Sheet Editor is a trusted operator. Ahm does not pretend to enforce finer roles because editors can modify the Sheet in Google’s own UI. Page reloads and expired tokens stop mutations until the user explicitly clicks **Reconnect Google**.
+
+The v3 tabs are:
+
+- `Ahm_Meta`
+- `Shop_Config`
+- `Reward_Catalog`
+- `Event_Ledger` — immutable source of truth
+- `Member_Summary` — rebuildable cache
+
+`Event_Ledger` uses `Event_ID`, `Event_Type`, `Member_Token`, `Phone_Number`, `Actor_Label`, `Occurred_At_UTC`, `Payload_JSON`, and `Schema_Version`. All writes use `values.append`. Sheet row order is authoritative and only the first occurrence of an event ID is folded. Purchases and reward selections carry policy/reward snapshots so later configuration edits do not rewrite history.
+
+Customer links have the form `/member?s={publicShopId}&t={memberToken}`. That page exposes no name, phone, balance, stamps, or rewards; it only renders an identifier QR for authorized staff to scan.
+
+## Legacy v2 migration
+
+The migration panel on `/setup` lets an authorized editor choose the old Sheet in Picker. Ahm creates a new v3 Sheet, writes each current member as a `MIGRATION_SNAPSHOT`, copies historical logs to `Legacy_Transaction_Logs`, adds `Ahm_Migration_Lock`, and then renames the source tabs with `Legacy_`. The v2 script in this repository refuses writes when that lock exists. Deployments made from older script versions that do not recognize the lock must also be disabled in Apps Script.
+
+Existing member tokens are preserved. `api/member.js` decrypts old `?c=` codes and redirects to the new staff-only route. A deterministic public shop ID is derived with a separate HMAC subkey from `MEMBER_LINK_KEY`. The endpoint does not contact Apps Script or expose its URL. `api/sheets.js` remains only for a time-limited v2 grace period; the v3 client never calls it. `google-apps-script/Code.gs` is a legacy migration artifact, not onboarding material.
+
+Set a stable random 32-byte hex `MEMBER_LINK_KEY` in Vercel for legacy redirects:
+
+```sh
+openssl rand -hex 32
+```
+
+Changing the key invalidates old encrypted QR links and changes their derived public shop IDs.
+
+## Develop and verify
+
+Install .NET 10 and Node.js, then run:
 
 ```sh
 npm ci
@@ -13,50 +76,11 @@ npm run css
 dotnet run --project src/Ahm/Ahm.csproj
 ```
 
-The local `dotnet run` server serves the UI but does not host `/api/sheets`. For end-to-end use, run `vercel dev` after linking the project, or use a deployed Vercel URL.
-
-## Brand assets
-
-The final logo is [`src/Ahm/wwwroot/logo.svg`](src/Ahm/wwwroot/logo.svg). Favicon, touch, app, and social preview PNGs are generated from the same mark with `pwsh -File scripts/generate-logo-icons.ps1` on Windows. The original generated concept is in [`assets/ahm-logo-source.png`](assets/ahm-logo-source.png). Brand colors are defined in [`src/Ahm/Styles/app.css`](src/Ahm/Styles/app.css).
-
-## Set up a shop
-
-The deployed `/setup` page walks shop owners through these steps and provides a **Copy Apps Script code** button and direct links to Google Sheets and Google's help pages.
-
-1. Create a blank Google Sheet in the shop owner's Google Drive.
-2. Open **Extensions → Apps Script** and replace `Code.gs` with [`google-apps-script/Code.gs`](google-apps-script/Code.gs).
-3. In **Project Settings → Script properties**, add `CASHIER_PIN` with a unique value of at least eight characters. Keep it private.
-4. In the Apps Script editor, select and run `initializeAhm` once. Authorize it. This records the Sheet ID in Script properties so web app requests can open the correct Sheet.
-5. Choose **Deploy → New deployment → Web app**. Set **Execute as: Me** and **Who has access: Anyone**. Authorize the script and copy its `/exec` URL. Do not use the `/dev` URL.
-6. On the deployed Ahm site, open `/setup`, enter the shop name, `/exec` URL, PIN, stamp policy and reward catalog, then save. Setup creates `Member_Cards`, `Transaction_Logs`, `Shop_Config`, `Reward_Catalog`, and `Member_Rewards` tabs automatically.
-
-For an existing shop, replace the Apps Script with the new `Code.gs`, redeploy it as a new Web App version, and use **Load latest settings from Sheet** on `/setup` before saving. The old member columns and cashback balances are retained. New columns track unspent bill amounts and reward choices. Existing cashback stays available for payout; future completed stamp cards earn a choice from the catalog.
-
-Each purchase earns `floor((carried spend + bill amount) / spend per stamp)` stamps. The remainder is carried to the next purchase. When the configured stamp target is reached, the member receives one reward choice per completed card. The customer opens their QR member link and chooses an active catalog item: fixed cashback, a percentage discount with an MMK cap, or a free item. Cashback is added to the available balance immediately. The cashier redeems discount and free-item choices from the customer card; for discounts, enter the current bill amount first and apply the displayed MMK discount to the bill. Changes to a catalog item do not alter rewards already chosen by members.
-
-Owners can turn any catalog item off. Each item can also have a finite stock quantity; leave stock blank for unlimited availability. Zero stock shows **Sold out** and blocks selection. A successful customer selection reduces finite stock by one under the shop's Apps Script lock. Already selected rewards remain redeemable if the catalog item is later disabled or sold out.
-
-Policy edits take effect on the next recorded purchase, including for existing stamps and carried spend. Reducing the target can complete an in-progress card on that next purchase. Chosen rewards retain their name and value at selection time.
-
-Customer QR links contain one AES-256-GCM encrypted code. The Vercel function decrypts it and requests that card from the shop's Apps Script; the member page receives only the member's display data, shop name, policy, and active rewards. The Apps Script URL and member token are absent from new URLs and customer API responses. Anyone holding a link can read that member's card **and choose an earned reward**, so share it only with that customer. Existing `?s=...&t=...` links are converted to encrypted links when opened, but the old shared URLs cannot be erased remotely; replace previously shared QR codes. Cashier actions require the PIN, which is held only in memory for the current browser session. Shop URL, policy and recent member cache use IndexedDB; the app does not use LocalStorage.
-
-## Deploy on Vercel
-
-The repository's [`vercel.json`](vercel.json) installs .NET 10 during a Linux build when necessary, runs Tailwind and `dotnet publish`, serves the published `wwwroot`, and rewrites Blazor routes to `index.html`.
-
-Set `MEMBER_LINK_KEY` to a random 32-byte hex value in Vercel's Production environment before deploying. Keep this value stable: changing it invalidates previously issued member links. For local `vercel dev`, set the same key in the Development environment.
+Before release:
 
 ```sh
-vercel link
-vercel deploy --prod
+npm test
+npm run build
 ```
 
-The site can be deployed before any shop creates a Sheet. A shop completes setup in its own browser after deployment.
-
-## Constraints
-
-- Google Apps Script has execution quotas and Google Sheets is unsuitable for high-volume or highly regulated financial systems.
-- Payouts are recorded in the Sheet before cash is handed to the customer. The cashier must hand over cash after the success message.
-- Discount redemption records the discount amount; it does not change an external POS bill automatically. The cashier must apply the displayed amount. Google Sheets does not provide database transactions across the member, claim, and log tabs, so operators should verify the member history if Apps Script reports a failure during a reward or payout action.
-- Camera scanning uses the browser's `BarcodeDetector` API where available. Cashiers can paste a QR link or token elsewhere.
-- This design includes a Vercel relay. The PRD's assertion that arbitrary Blazor fetch requests to Apps Script are free of CORS restrictions is not dependable with Google Content Service redirects.
+Use a staging OAuth project with test users for mobile smoke tests. Verify owner creation, staff Picker selection, concurrent appends, QR staff lookup, migration, token expiry/reconnect, and Burmese/English preference persistence. Google and hosting quotas/policies still apply even though Ahm charges no subscription and runs no application database.

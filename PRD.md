@@ -1,255 +1,83 @@
-# Product Requirements Document (PRD)
+# Ahm Product Requirements — v6
 
-**Project Name:** အမ်း (Ahm / Earn)
+## Product promise
 
-**Tagline:** Smart Loyalty, Earn Cashback
+Ahm is a free, staff-assisted loyalty workspace backed by each shop’s own Google Sheet. It is a static Blazor WebAssembly application. Ahm does not persist Google credentials, shop records, or customer records on an Ahm backend.
 
-**Platform Architecture:** Blazor WebAssembly (Pure Client-Side, Zero Backend Server)
+## Actors and trust
 
-**Database & Storage:** Google Sheets (Google Apps Script Web App Engine)
+- Owners create or select the shop Sheet from a mobile browser.
+- Staff select a Sheet shared with their Google account and operate the same staff workspace.
+- Customers present an identifier QR. They do not view balances or select rewards themselves.
+- Every Google Sheet Editor is a trusted operator. There are no application-only owner/cashier roles or PINs.
 
-**Client Storage Engine:** Browser IndexedDB (No LocalStorage)
-
-**Customer Identifier:** Phone Number & Encrypted QR Token
-
-**Business Model:** 100% Free & Open Community Tool (Zero Infrastructure Cost for Creator)
-
-**Version:** 5.0.0
-
----
-
-## ၁။ စီမံကိန်း အကျဉ်းချုပ် (Executive Summary)
-
-**"အမ်း (Ahm)"** သည် ကော်ဖီဆိုင်၊ လက်ဖက်ရည်ဆိုင်၊ စားသောက်ဆိုင်နှင့် ဘီယာဆိုင်များအတွက် ရည်ရွယ်ထုတ်လုပ်ထားသော စက္ကူကတ်မဲ့ Digital Loyalty & Cashback စနစ်ဖြစ်သည်။
-
-စနစ်အမည်ဖြစ်သော **"အမ်း"** သည် အင်္ဂလိပ်ဘာသာ **"Earn" (အမှတ်နှင့် ဆုကြေးများ စုဆောင်းရယူသည်)** ဆိုသော အဓိပ္ပာယ်နှင့် အသံထွက်တူညီပြီး၊ မြန်မာစကားအရ **"ငွေသားပြန်အမ်းငွေ (Cashback)"** ကို တိုက်ရိုက်ရည်ညွှန်းသည်။
-
-ဤစနစ်သည် ဗဟိုဆာဗာ (Central Server) မရှိဘဲ Static Web Hosting ပေါ်တွင် အခမဲ့ လွှင့်တင်ထားမည့် **Blazor WebAssembly** ဖြစ်သည်။ ဆိုင်ရှင်များသည် မိမိတို့၏ ကိုယ်ပိုင် **Google Sheets** အား Database အဖြစ် အသုံးပြုပြီး Google Apps Script ဖြင့် CORS အခက်အခဲမရှိ Browser မှ တိုက်ရိုက် ချိတ်ဆက်အသုံးပြုမည်ဖြစ်သည်။ ဆိုင်ရှင်၏ Credential များနှင့် Cache များကို Browser ၏ **IndexedDB** တွင်သာ သိမ်းဆည်းမည်ဖြစ်သည် (LocalStorage ကို လုံးဝအသုံးမပြုပါ)။
-
----
-
-## ၂။ အသုံးပြုသူ အဆင့်များနှင့် အခန်းကဏ္ဍ (Target Users & Roles)
-
-1. **ဆိုင်ရှင်နှင့် ကောင်တာဝန်ထမ်း (Shop Owner / Cashier):**
-* မိမိ Google Sheet မှ Apps Script Web App URL အား Blazor WASM ထဲသို့ ထည့်သွင်း၍ "အမ်း" စနစ်ကို အစပြုလည်ပတ်သူ။
-* Customer ဘေလ်ရှင်းသည့်အခါ ဖုန်းနံပါတ် (သို့မဟုတ် Encrypted QR) ဖြင့် ရှာဖွေပြီး Stamp ပေါင်းပေးခြင်း၊ Cashback ထုတ်ပေးခြင်းများ ဆောင်ရွက်သူ။
-
-
-* ဆိုင်၏ မူဝါဒ (Spend per Stamp, Target Stamps) နှင့် Reward Catalog ကို သတ်မှတ်သူ။
-
-
-
-
-2. **စားသုံးသူ (Customer):**
-* မည်သည့် Mobile App မျှ Install လုပ်စရာမလို၊ အကောင့်ဖွင့်စရာမလိုဘဲ ငွေရှင်းကောင်တာတွင် ဖုန်းနံပါတ်နှင့် နာမည်သာ ပြောပြသူ။
-
-
-* မိမိရရှိထားသော Stamp နှင့် ပြန်အမ်းငွေ (Cashback) ကို စစ်ဆေးလိုပါက Encrypted QR ကို Scan ဖတ်ကာ ဖုန်း Browser ဖြင့် ချက်ချင်း ကြည့်ရှုသူ။
-
-
-
-
-
----
-
-## ၃။ စနစ်၏ တည်ဆောက်ပုံ (System Architecture)
+## Browser-to-Google architecture
 
 ```text
-[Customer / Cashier Device]
-             │
-             ▼
-      [Blazor WebAssembly ("အမ်း")]
-             │
-             ├── Local State & Offline Cache ──► [Browser IndexedDB]
-             │
-             ▼ Direct HTTPS Call (No CORS, No Proxy)
-[Google Apps Script Web App (API Engine)]
-             │
-             ▼ Auto Append / Query Rows
-   [Shop Owner's Google Sheet]
-      ├── Tab 1: Member_Cards
-      ├── Tab 2: Transaction_Logs
-      └── Tab 3: Shop_Config
+Owner/staff mobile browser
+  ├─ Google Identity Services: drive.file token (memory only)
+  ├─ Google Picker: choose a Sheet the user can access
+  └─ Google Sheets/Drive REST APIs: direct authenticated calls
+          └─ Shop-owned Google Sheet
 
+Ahm static host
+  ├─ serves Blazor/CSS/JS/privacy/terms
+  ├─ legacy QR redirect (stateless)
+  └─ temporary v2 Apps Script relay (never called by v3)
 ```
 
----
+The public build contains only the OAuth client ID, restricted Picker API key, and project number. It contains no client secret. A token expires in memory and cannot be silently refreshed; writes stop until a user gesture reconnects Google.
 
-## ၄။ Client Storage ဖွဲ့စည်းပုံ (Browser IndexedDB Stores)
+## Schema v3
 
-LocalStorage ကို လုံးဝမသုံးဘဲ Browser ၏ **IndexedDB** ထဲတွင် အောက်ပါ Object Store များကို တည်ဆောက်သိမ်းဆည်းမည်-
+The required tabs are `Ahm_Meta`, `Shop_Config`, `Reward_Catalog`, `Event_Ledger`, and `Member_Summary`.
 
-* **`ShopCredentialsStore`:**
-* `gas_web_app_url`: ဆိုင်ရှင်၏ Google Apps Script Web App URL
-* `shop_name`: ဆိုင်အမည် (ဥပမာ - Shwe Tea House)
+`Event_Ledger` is the transaction source of truth. Its exact columns are:
 
+1. `Event_ID`
+2. `Event_Type`
+3. `Member_Token`
+4. `Phone_Number`
+5. `Actor_Label`
+6. `Occurred_At_UTC`
+7. `Payload_JSON`
+8. `Schema_Version`
 
+Supported events are `MIGRATION_SNAPSHOT`, `MEMBER_ENROLLED`, `PURCHASE_RECORDED`, `REWARD_SELECTED`, `REWARD_REDEEMED`, and `CASHBACK_PAID`.
 
+Every transaction is appended with `values.append`; existing ledger rows are never updated. The fold follows Sheet row order, accepts only the first occurrence of an `Event_ID`, and deterministically rejects duplicate enrollment, insufficient credits/balance, sold-out stock, duplicate redemption, malformed payloads, and invalid versions. `Member_Summary` can be rebuilt and is never authoritative.
 
-* **`PolicyStore`:**
-* `min_spend_per_stamp`: Stamp ၁ ခု ရရှိရန် သုံးစွဲငွေ အချိုး (Default: 10,000 MMK)
+A purchase event embeds its policy. A selection embeds reward name, type, value, cap, and stock snapshot. Later setting changes therefore affect only later events.
 
+## Setup and operation
 
-* `max_stamps`: ကတ်ပြည့်ရန် လိုအပ်သော အရေအတွက် (Default: 10 ခု)
+- **Create new Ahm Sheet** creates and initializes schema v3 through Sheets API.
+- **Connect existing Sheet** uses Picker and rejects non-v3 or view-only files.
+- Only non-secret connection preferences and derived caches may persist in IndexedDB.
+- API quota responses use bounded backoff. Retried append bodies retain the same event ID.
+- Google authorization denial, Picker cancellation, network errors, schema mismatch, and expired authorization must produce actionable UI errors.
 
+## QR and migration
 
-* `cashback_reward`: Sheet အဟောင်းမှ ပြောင်းလာသည့်ဆိုင်အတွက် မူလ Cashback Catalog Item ဖန်တီးရာတွင်သာ အသုံးပြုသော တန်ဖိုး
+New identifiers use `/member?s={publicShopId}&t={memberToken}`. The public page reveals no private member state. If authorized staff open the link on a connected device, they can continue to staff lookup.
 
+Migration selects the v2 Sheet, creates a v3 Sheet, writes current members/rewards/claims as snapshot events, copies logs to an archive tab, preserves member tokens, and only after successful destination writes renames old operational tabs with `Legacy_`.
 
-* `min_withdrawal`: စတင်ထုတ်ယူနိုင်သည့် အနည်းဆုံးပမာဏ (Default: 1,000 MMK)
+The legacy redirect decrypts old AES-GCM codes and derives a stable `PublicShopId` using a purpose-specific HMAC subkey. It returns only a redirect to the new route, uses `Cache-Control: no-store` and `Referrer-Policy: no-referrer`, and writes no application logs.
 
+## Security and privacy acceptance
 
-* ပိုလျှံသော Stamp နှင့် သုံးစွဲငွေကို နောက်ကတ်/နောက်ဝယ်ယူမှုသို့ အမြဲ ကူးပြောင်းမည်။ Reward Catalog ကို Sheet တွင် သိမ်းပြီး Browser Setup တွင် Cache လုပ်မည်။
+- No bearer token in IndexedDB, LocalStorage, sessionStorage, URLs, request bodies, diagnostics, or application logs.
+- CSP permits only the application and required Google Identity/Picker/API origins; untrusted scripts are blocked.
+- Sheet IDs, event payload sizes, and numeric values are validated.
+- API keys are origin/API restricted and documented.
+- Privacy text distinguishes Ahm application persistence from ordinary infrastructure access logs and legacy transient processing.
+- Production requires verified domain, public privacy/terms pages, configured OAuth brand, and Google’s required verification.
 
+## Release acceptance
 
-
-
-* **`CustomerCacheStore`:**
-* မကြာသေးမီက ရှာဖွေထားသော Customer Data များကို IndexedDB တွင် ခေတ္တ Cache လုပ်ထားခြင်းဖြင့် Google Sheet ဆီသို့ Request သွားရောက်မှု အကြိမ်ရေကို လျှော့ချပေးမည်။
-
-
-
----
-
-## ၅။ Google Sheet Database ဖွဲ့စည်းပုံ (Shop Owner's Private Storage)
-
-ဆိုင်ရှင်၏ Google Drive ထဲရှိ Sheet ဖိုင်တွင် အောက်ပါ Tab (၅) ခု ပါဝင်မည်ဖြစ်သည်-
-
-### ၅.၁။ Tab 1: `Member_Cards`
-
-* **Column A (Phone_Number):** Customer ဖုန်းနံပါတ် (Primary Search Key)
-* **Column B (Customer_Name):** စားသုံးသူအမည်
-* **Column C (Current_Stamps):** လက်ရှိ Stamp အရေအတွက်
-
-
-* **Column D (Available_Cashback):** ထုတ်ယူနိုင်သည့် ပြန်အမ်းငွေပမာဏ (MMK)
-
-
-* **Column E (Lifetime_Cashback):** စုစုပေါင်း ရရှိခဲ့သည့် ပြန်အမ်းငွေ (MMK)
-
-
-* **Column F (Last_Visit):** နောက်ဆုံး ဘေလ်ရှင်းခဲ့သည့် နေ့စွဲနှင့် အချိန်
-* **Column G-J:** Member Token၊ နောက်ဝယ်ယူမှုသို့ ဆက်သယ်သောငွေ၊ မသုံးရသေးသော ဆုရွေးခွင့်နှင့် နောက်ဆုံးဆုရွေးချယ်မှု Request ID
-
-### ၅.၂။ Tab 2: `Transaction_Logs`
-
-* **Column A (Log_ID):** Auto-generated Sequence ID (ဥပမာ - 1, 2, ...)
-
-
-* **Column B (Phone_Number):** Customer ဖုန်းနံပါတ်
-* **Column C (Action):** `STAMP_ADD`, `CARD_COMPLETE`, `REWARD_SELECTED`, `REWARD_REDEEM`, `CASHBACK_PAYOUT`
-
-* **Column D (Delta_Amount):** အတိုး/အလျော့ ပမာဏ (Stamp သို့မဟုတ် Cashback MMK)
-
-
-* **Column E (Note):** အသေးစိတ် မှတ်ချက် (ဥပမာ - `Card complete`, `Leftover from previous card`)
-
-
-* **Column F (Timestamp):** ဖြစ်ပွားခဲ့သည့် အချိန်
-* **Column G (Request_ID):** တူညီသော Request ကို ထပ်မံမတွက်မိစေရန် ID
-
-
-
-### ၅.၃။ Tab 3: `Shop_Config`
-
-* ဆိုင်၏ မူဝါဒ Parameter များနှင့် စည်းမျဉ်းများကို Key-Value ပုံစံဖြင့် သိမ်းဆည်းထားခြင်း။
-
-### ၅.၄။ Tab 4: `Reward_Catalog`
-
-* ဆိုင်က ဖန်တီးထားသော Cashback၊ ရာခိုင်နှုန်း Discount နှင့် Free Item များ၏ အမည်၊ တန်ဖိုး၊ အများဆုံးလျှော့ငွေ၊ Active အခြေအနေနှင့် လက်ကျန် Stock ကို သိမ်းဆည်းသည်။ Stock ကို အလွတ်ထားလျှင် အကန့်အသတ်မရှိဟု သတ်မှတ်ပြီး ၀ ဖြစ်လျှင် Sold Out ပြသည်။
-
-### ၅.၅။ Tab 5: `Member_Rewards`
-
-* Customer ရွေးခဲ့သည့် ဆု၏ အမည်၊ အမျိုးအစား၊ တန်ဖိုးနှင့် Pending/Applied/Redeemed အခြေအနေကို ရွေးချယ်ချိန်တန်ဖိုးအတိုင်း သိမ်းဆည်းသည်။
-
-
-
----
-
-## ၆။ အဓိက လုပ်ငန်းစဉ်များ (Functional Workflows)
-
-### ၆.၁။ ဆိုင်စတင်ချိတ်ဆက်ခြင်း (Shop Onboarding)
-
-1. ဆိုင်ရှင်သည် ပေးထားသော Google Sheet Template ကို မိမိ Google Drive ထဲသို့ "Make a Copy" ကူးယူသည်။
-2. Sheet ထဲရှိ Apps Script ကို 1-Click ဖြင့် "Deploy as Web App" ပြုလုပ်ပြီး ရလာသော Web App URL ကို ကူးယူသည်။
-3. Blazor WASM စနစ်၏ `/setup` တွင် ထို URL နှင့် ဆိုင်အချက်အလက်များကို ဖြည့်စွက်သည်။
-4. စနစ်က အချက်အလက်များကို Browser ၏ **IndexedDB** တွင် သိမ်းဆည်းလိုက်ပြီး နေ့စဉ် သုံးစွဲမည့် "အမ်း POS View" သို့ အလိုအလျောက် ရောက်ရှိသွားမည်။
-
-### ၆.၂။ Customer စာရင်းသွင်းခြင်းနှင့် Stamp ထည့်ပေးခြင်း (Daily POS Flow)
-
-```text
-[Customer ဘေလ်ရှင်းခြင်း] ──► ဝန်ထမ်းအား ဖုန်းနံပါတ်နှင့် နာမည်ပြောခြင်း
-                                        │
-                                        ▼
-                  [ဝန်ထမ်းက ဖုန်းနံပါတ် ရိုက်ထည့်ရှာဖွေခြင်း]
-                                        │
-                ┌───────────────────────┴───────────────────────┐
-                ▼                                               ▼
-        [ဖုန်းနံပါတ် အသစ်ဖြစ်ပါက]                       [ယခင်ရှိပြီးသား ဖုန်းဖြစ်ပါက]
-                │                                               │
- နာမည်ထည့်၍ Customer အသစ်ဖန်တီးခြင်း              လက်ရှိ Stamp အကွက်ဟောင်းကို ဖွင့်ပြခြင်း[cite: 1]
- (Google Sheet သို့ auto append row)                            │
-                │                                               │
-                └───────────────────────┬───────────────────────┘
-                                        │
-                                        ▼
-                [ဘေလ်ပမာဏနှင့် ပိုငွေအရ Stamp အရေအတွက်တွက်ခြင်း]
-
-```
-
-### ၆.၃။ Encrypted QR Identity Flow
-
-* **QR Generation:** စနစ်က Customer ၏ ဖုန်းနံပါတ်ကို AES / HMAC သို့မဟုတ် Base64 URL-Safe ဖြင့် Encrypt ပြုလုပ်ကာ QR Token ထုတ်ပေးသည်။
-
-
-* **QR Scanning:**
-* ကောင်တာဝန်ထမ်းက Customer ၏ QR Code (ဖုန်း screen သို့မဟုတ် Physical Card) ကို Scan ဖတ်ပါက စနစ်က Decrypt ပြုလုပ်၍ ဖုန်းနံပါတ်အား အလိုအလျောက် ရှာဖွေပေးသည်။
-
-
-* Customer ကိုယ်တိုင် Scan ဖတ်ပါက Browser ပေါ်တွင် App သွင်းစရာမလိုဘဲ မိမိ၏ Stamp အရေအတွက်နှင့် လက်ကျန် Cashback ကို တိုက်ရိုက် ကြည့်ရှုနိုင်သည်။
-
-
-
-
-
-### ၆.၄။ Dynamic Stamp Rule နှင့် Reward Catalog
-
-* ဆိုင်သည် `Spend per Stamp` နှင့် `Target Stamps` ကို Setup တွင် ပြင်နိုင်သည်။ ဘေလ်ငွေနှင့် ယခင်ပိုငွေကို ပေါင်းပြီး `floor(total / Spend per Stamp)` ဖြင့် Stamp တွက်သည်။ ကျန်ငွေကို နောက်ဝယ်ယူမှုသို့ ဆက်သယ်သည်။ ဥပမာ ၁၀,၀၀၀ MMK လျှင် Stamp ၁ ခုအဖြစ် သတ်မှတ်ထားချိန် ၂၅,၀၀၀ MMK ဘေလ်သည် Stamp ၂ ခုနှင့် ပိုငွေ ၅,၀၀၀ MMK ဖြစ်သည်။
-* Stamp ပန်းတိုင်ပြည့်တိုင်း ဆုရွေးခွင့် ၁ ကြိမ် ရသည်။ တစ်ဘေလ်မှ ပန်းတိုင်များစွာ ပြည့်နိုင်ပြီး ပိုသော Stamp များကို ဆက်သယ်သည်။
-* ဆိုင်သည် Reward Catalog ထဲတွင် Cashback ပမာဏ၊ အများဆုံးလျှော့ငွေပါသော ရာခိုင်နှုန်း Discount သို့မဟုတ် Free Item ကို ဖန်တီးပြီး ဖွင့်/ပိတ်နိုင်သည်။ Stock အရေအတွက် သတ်မှတ်နိုင်ပြီး Stock ၀ ဖြစ်သောဆုကို Customer မရွေးနိုင်ပါ။ Customer သည် QR Member Page မှ ရရှိထားသော ဆုရွေးခွင့်အတွက် ဆုတစ်မျိုးကို ရွေးသည်။
-* Cashback ရွေးလျှင် `Available Cashback` နှင့် `Lifetime Cashback` တိုးသည်။ Discount သို့မဟုတ် Free Item ရွေးလျှင် Cashier မှ အသုံးပြုမှုကို အတည်ပြုသည်။ ရွေးပြီးသားဆု၏ အမည်နှင့်တန်ဖိုးကို မှတ်တမ်းထဲ သိမ်းထားသောကြောင့် Catalog ပြင်ခြင်းက ထိုဆုကို မပြောင်းစေပါ။
-* Cashback Withdrawal ကို သတ်မှတ်ထားသော အနည်းဆုံးပမာဏ ပြည့်ချိန် Cashier က မှတ်တမ်းတင်ပြီး Customer ကို ငွေသားပေးသည်။ Discount ပမာဏကို System က တွက်ပေးပြီး Cashier က ဘေလ်ပေါ်တွင် အသုံးပြုသည်။
-
-
-
-
-
----
-
-## ၇။ Customer Member View (မိုဘိုင်းမျက်နှာပြင် ဒီဇိုင်း)
-
-Customer သည် QR ဖတ်၍ ကြည့်ရှုသည့်အခါ အောက်ပါအချက်များကို ရှင်းလင်းစွာ မြင်တွေ့ရမည်-
-
-* **Header:** ဆိုင်အမည်နှင့် Customer နာမည်။
-
-
-* **Member Card (Stamp Grid):** ဆိုင်က သတ်မှတ်ထားသော Stamp ပန်းတိုင်၊ လက်ရှိ Stamp၊ နောက်ဝယ်ယူမှုသို့ ဆက်သယ်ထားသော ငွေပမာဏနှင့် ဆုရွေးခွင့် အရေအတွက်။
-
-
-* **Cashback Status:** ထုတ်ယူနိုင်သော လက်ကျန်ငွေ (`0 MMK available`) နှင့် စုစုပေါင်း ရရှိခဲ့သည့် ငွေပမာဏ (`Lifetime cashback earned: 20,000 MMK`)။
-
-* **Reward Choice:** ဆုရွေးခွင့် ရှိပါက Customer သည် Catalog ထဲမှ ဆုတစ်မျိုးကို ရွေးနိုင်ပြီး မသုံးရသေးသော Discount/Free Item ကို ပြနိုင်သည်။
-
-
-* **Withdrawal & Activity Logs:** ငွေထုတ်ယူခဲ့သည့် စာရင်းနှင့် လတ်တလော Stamp ရရှိခဲ့သည့် မှတ်တမ်းများ။
-
-
-
----
-
-## ၈။ စနစ်၏ ထူးခြားသော အားသာချက်များ (Key Benefits)
-
-1. **Zero Maintenance & Zero Cost:** System Creator ဘက်မှ မည်သည့် Server၊ Database သို့မဟုတ် CORS Proxy စရိတ်မျှ လုံးဝ စိုက်ထုတ်ရန် မလိုဘဲ အခမဲ့ ဖြန့်ဝေနိုင်ခြင်း။
-2. **No CORS Restrictions:** Google Apps Script Web App ကို Browser (Blazor WASM) မှ တိုက်ရိုက် `POST/GET` ခေါ်ယူနိုင်ခြင်း။
-3. **Data Privacy & Ownership:** ဆိုင်ရှင်များ၏ Customer စာရင်းနှင့် ငွေကြေးစာရင်းများသည် မိမိတို့၏ ကိုယ်ပိုင် Google Drive ထဲတွင်သာ ၁၀၀% လုံခြုံစွာ တည်ရှိနေခြင်း။
-4. **IndexedDB High Performance:** LocalStorage ကဲ့သို့ Data ကန့်သတ်ချက် သေးငယ်ခြင်းမရှိဘဲ လုံခြုံမြန်ဆန်သော Local Caching ကို ရရှိစေခြင်း။
+- Pure fold tests cover duplicate IDs, row ordering, duplicate enrollment, carried spend, multiple card completion, stock contention, immutable snapshots, redemption, payout, and malformed input.
+- Adapter tests cover memory-only tokens, expiry, Picker cancellation, read-only sheets, schema mismatch, retry/backoff, and append idempotency.
+- Migration tests preserve v2 state/tokens and archive safely before disabling old writes.
+- Mobile tests cover owner create, staff select, multi-session appends, QR staff lookup, and language persistence.
+- `npm test` and the production build pass before deployment; OAuth behavior is smoke-tested with staging test users.
