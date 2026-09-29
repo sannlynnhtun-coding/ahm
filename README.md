@@ -65,6 +65,14 @@ openssl rand -hex 32
 
 Changing the key invalidates old encrypted QR links and changes their derived public shop IDs.
 
+## Automatic Vercel deployments
+
+The GitHub repository `sannlynnhtun-coding/ahm` is connected to the existing [Vercel project](https://vercel.com/sann-lynn-htuns-projects/ahm). Pushes to `main`, including merged pull requests, deploy to production. Pushes to other branches create preview deployments.
+
+[`vercel.json`](vercel.json) explicitly enables [automatic Git deployments](https://vercel.com/docs/project-configuration/git-configuration#git.deploymentenabled), installs dependencies with `npm ci`, and runs `bash scripts/vercel-build.sh`. The build script installs .NET 10 when needed, runs `npm run build`, and publishes the static site to `dist`.
+
+The production branch is configured as `main` in Vercel's project settings. Configure environment variables in Vercel for the environments that need them; `MEMBER_LINK_KEY` is required for legacy QR redirects. This deployment flow uses Vercel's GitHub integration and does not require GitHub Actions secrets.
+
 ## Develop and verify
 
 Install .NET 10 and Node.js, then run:
