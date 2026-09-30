@@ -11,11 +11,15 @@ public partial class Home : IDisposable
 {
     private static readonly Regex IdentifierPattern = new("^[A-Za-z0-9_-]{8,160}$", RegexOptions.Compiled);
     private bool loaded, busy, messageIsError, googleConfigured, googleConnected, showEnroll, validMemberLink, burmese = true;
+    private bool showRewardDialog, openRewardDialogAfterRender;
     private string page = "", message = "", lookup = "", newName = "", publicShopId = "", memberToken = "";
+    private string rewardDialogError = "", rewardDialogReturnFocusId = "add-reward";
+    private string? editingRewardId;
     private int spend;
     private ShopSetup setup = new();
     private GoogleShopState state = new();
     private Member? member;
+    private ShopReward rewardDraft = NewRewardDraft();
 
     private string Title => page switch
     {
@@ -73,6 +77,11 @@ public partial class Home : IDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (showRewardDialog && openRewardDialogAfterRender)
+        {
+            openRewardDialogAfterRender = false;
+            await Js.InvokeVoidAsync("ahmUi.openDialog", "reward-dialog", "reward-name");
+        }
         if (page == "member" && validMemberLink)
             await Js.InvokeVoidAsync("ahmQr.render", "publicMemberQr", Nav.Uri);
         if (page == "cashier" && member is not null)
@@ -142,7 +151,95 @@ public partial class Home : IDisposable
         });
     }
 
-    private void AddReward() => setup.Rewards.Add(new ShopReward { Name = "New reward", Type = "FREE_ITEM", Value = 0 });
+    private static ShopReward NewRewardDraft() => new() { Name = "", Type = "FREE_ITEM", Value = 0, Active = true };
+
+    private void OpenAddRewardDialog()
+    {
+        editingRewardId = null;
+        rewardDraft = NewRewardDraft();
+        rewardDialogError = "";
+        rewardDialogReturnFocusId = "add-reward";
+        showRewardDialog = true;
+        openRewardDialogAfterRender = true;
+    }
+
+    private void OpenEditRewardDialog(ShopReward reward)
+    {
+        editingRewardId = reward.Id;
+        rewardDraft = new ShopReward
+        {
+            Id = reward.Id,
+            Name = reward.Name,
+            Type = reward.Type,
+            Value = reward.Value,
+            MaxDiscount = reward.MaxDiscount,
+            StockQuantity = reward.StockQuantity,
+            Description = reward.Description,
+            Active = reward.Active
+        };
+        rewardDialogError = "";
+        rewardDialogReturnFocusId = $"edit-reward-{reward.Id}";
+        showRewardDialog = true;
+        openRewardDialogAfterRender = true;
+    }
+
+    private async Task SaveRewardDraft()
+    {
+        rewardDialogError = ValidateReward(rewardDraft);
+        if (rewardDialogError.Length > 0) return;
+
+        rewardDraft.Name = rewardDraft.Name.Trim();
+        rewardDraft.Description = rewardDraft.Description.Trim();
+        if (rewardDraft.Type == "FREE_ITEM") rewardDraft.Value = 0;
+        if (rewardDraft.Type != "PERCENT_DISCOUNT") rewardDraft.MaxDiscount = 0;
+
+        if (editingRewardId is null)
+        {
+            setup.Rewards.Add(rewardDraft);
+        }
+        else
+        {
+            var reward = setup.Rewards.FirstOrDefault(item => item.Id == editingRewardId);
+            if (reward is null)
+            {
+                rewardDialogError = "This reward is no longer in the catalog.";
+                return;
+            }
+            reward.Name = rewardDraft.Name;
+            reward.Type = rewardDraft.Type;
+            reward.Value = rewardDraft.Value;
+            reward.MaxDiscount = rewardDraft.MaxDiscount;
+            reward.StockQuantity = rewardDraft.StockQuantity;
+            reward.Description = rewardDraft.Description;
+            reward.Active = rewardDraft.Active;
+        }
+
+        await CloseRewardDialog();
+    }
+
+    private static string ValidateReward(ShopReward reward)
+    {
+        if (string.IsNullOrWhiteSpace(reward.Name)) return "Enter a reward name.";
+        if (reward.Type is not ("CASHBACK" or "PERCENT_DISCOUNT" or "FREE_ITEM")) return "Choose a valid reward type.";
+        if (reward.Type != "FREE_ITEM" && reward.Value < 1) return "Enter a value greater than zero.";
+        if (reward.Type == "PERCENT_DISCOUNT" && reward.Value > 100) return "Discount percentage cannot be more than 100.";
+        if (reward.MaxDiscount < 0) return "Maximum discount cannot be negative.";
+        if (reward.StockQuantity is < 0) return "Stock quantity cannot be negative.";
+        return "";
+    }
+
+    private async Task CloseRewardDialog()
+    {
+        var returnFocusId = rewardDialogReturnFocusId;
+        showRewardDialog = false;
+        openRewardDialogAfterRender = false;
+        rewardDialogError = "";
+        editingRewardId = null;
+        rewardDraft = NewRewardDraft();
+        await InvokeAsync(StateHasChanged);
+        await Js.InvokeVoidAsync("ahmUi.focusById", returnFocusId);
+    }
+
     private void DisableReward(ShopReward reward)
     {
         if (reward.Active) reward.Active = false;
@@ -287,6 +384,19 @@ public partial class Home : IDisposable
     private static string NormalizePhone(string value) => new(value.Where(character => char.IsDigit(character) || character == '+').ToArray());
     private static string Query(Uri uri, string key) => uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries).Select(part => part.Split('=', 2)).Where(pair => Uri.UnescapeDataString(pair[0]) == key).Select(pair => pair.Length > 1 ? Uri.UnescapeDataString(pair[1]) : "").FirstOrDefault() ?? "";
     private static string Money(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
+    private static string RewardTypeLabel(ShopReward reward) => reward.Type switch
+    {
+        "CASHBACK" => "Cashback",
+        "PERCENT_DISCOUNT" => "Percentage discount",
+        _ => "Free item"
+    };
+    private static string RewardCatalogValue(ShopReward reward) => reward.Type switch
+    {
+        "CASHBACK" => $"{Money(reward.Value)} MMK",
+        "PERCENT_DISCOUNT" when reward.MaxDiscount > 0 => $"{reward.Value}% (up to {Money(reward.MaxDiscount)} MMK)",
+        "PERCENT_DISCOUNT" => $"{reward.Value}%",
+        _ => "Item"
+    };
     private static string RewardLabel(ShopReward reward) => reward.Type switch { "CASHBACK" => $"{Money(reward.Value)} MMK", "PERCENT_DISCOUNT" => $"{reward.Value}% (cap {Money(reward.MaxDiscount)})", _ => "Free item" };
     private int? RemainingStock(ShopReward reward) => reward.StockQuantity is int cap ? Math.Max(0, cap - state.StockUsed.GetValueOrDefault(reward.Id)) : null;
     private void ThrowIfRejected(string eventId)

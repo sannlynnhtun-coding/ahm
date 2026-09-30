@@ -25,6 +25,8 @@
 @layer components {
   .skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 60; transform: translateY(-160%); border-radius: .5rem; background: #fff; padding: .75rem 1rem; color: #0d302c; font-weight: 600; }
   .skip-link:focus { transform: translateY(0); }
+  .reward-dialog { width: calc(100% - 2rem); max-width: 32rem; max-height: calc(100dvh - 2rem); margin: auto; padding: 0; overflow: hidden; border: 0; border-radius: 1rem; background: transparent; box-shadow: 0 24px 80px rgb(13 48 44 / .24); }
+  .reward-dialog::backdrop { background: rgb(13 48 44 / .58); backdrop-filter: blur(2px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

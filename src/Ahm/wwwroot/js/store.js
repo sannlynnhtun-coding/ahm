@@ -43,3 +43,15 @@ window.ahmStore = (() => {
   }
   return { get, put, remove };
 })();
+
+window.ahmUi = {
+  focusById(id) {
+    document.getElementById(id)?.focus();
+  },
+  openDialog(id, focusId) {
+    const dialog = document.getElementById(id);
+    if (!(dialog instanceof HTMLDialogElement)) return;
+    if (!dialog.open) dialog.showModal();
+    requestAnimationFrame(() => document.getElementById(focusId)?.focus());
+  }
+};
