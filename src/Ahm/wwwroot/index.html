@@ -6,6 +6,7 @@
     <title>Ahm | Staff-assisted Google Sheets loyalty</title>
     <meta name="description" content="Ahm gives shop staff a free, browser-direct loyalty workspace backed by the shop's own Google Sheet." />
     <meta name="application-name" content="Ahm" />
+    <meta name="google-site-verification" content="bCMXuZj4gI9xg0fPDpiiSQ7Y8cM1HAMO4HAIMpQDy5I" />
     <meta name="theme-color" content="#14534c" />
     <meta name="color-scheme" content="light" />
     <meta name="apple-mobile-web-app-title" content="Ahm" />
@@ -30,7 +31,25 @@
     <link rel="manifest" href="manifest.webmanifest" />
 </head>
 <body>
-    <div id="app" class="min-h-screen grid place-items-center text-sm text-brand-700"><div class="flex flex-col items-center gap-3"><img src="logo.svg" alt="" width="48" height="48" class="h-12 w-12" /><span>Loading Ahm…</span></div></div>
+    <div id="app" class="min-h-screen">
+        <header class="border-b border-brand-100 bg-white">
+            <div class="mx-auto flex min-h-14 max-w-2xl items-center justify-between gap-3 px-5 py-2">
+                <a href="/" aria-label="Ahm home" class="flex items-center gap-2.5 no-underline"><img src="logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><strong>Ahm (အမ်း)</strong></a>
+                <nav aria-label="Public information" class="flex gap-3 text-sm"><a href="/privacy" class="underline">Privacy</a><a href="/terms" class="underline">Terms</a></nav>
+            </div>
+        </header>
+        <main class="mx-auto w-full max-w-2xl px-4 py-8 sm:px-5">
+            <section class="rounded-2xl border border-zinc-200 bg-white p-7 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Ahm (အမ်း) · Free · Browser-direct · Google Sheets</p>
+                <h1 class="mt-2 text-2xl font-semibold">Ahm — a staff-assisted loyalty workspace for shops</h1>
+                <p class="mt-3 text-sm leading-7 text-zinc-700">Ahm helps shop owners and authorised staff record purchases, stamps, cashback and rewards in a Google Sheet owned by the shop. This public homepage is available without signing in.</p>
+                <p class="mt-3 text-sm leading-7 text-zinc-700">When a user chooses to connect Google, Ahm requests the <code>drive.file</code> permission so the browser can create, open and update only the Google Drive files created with or selected for Ahm. Ahm does not request access to the user's entire Drive.</p>
+                <p class="mt-3 text-sm leading-7 text-zinc-700">Google user data is used only to provide Ahm's visible loyalty features. It is not sold, used for advertising or credit decisions, used to train AI/ML models, or used to generate or process intimate imagery.</p>
+                <div class="mt-5 flex flex-wrap gap-3"><a href="/privacy" class="inline-flex min-h-11 items-center rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">Read the Privacy Policy</a><a href="/terms" class="inline-flex min-h-11 items-center rounded-xl border border-zinc-300 px-4 text-sm font-semibold">Terms of Service</a></div>
+            </section>
+            <p class="mt-4 text-center text-sm text-brand-700" role="status">Loading the Ahm workspace…</p>
+        </main>
+    </div>
     <div id="blazor-error-ui" class="hidden">An error occurred. <a href="." class="underline">Reload</a></div>
     <script src="js/store.js"></script>
     <script src="js/qr.js"></script>

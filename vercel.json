@@ -26,7 +26,7 @@
     { "source": "/setup", "destination": "/index.html" },
     { "source": "/cashier", "destination": "/index.html" },
     { "source": "/member", "destination": "/index.html" },
-    { "source": "/privacy", "destination": "/index.html" },
-    { "source": "/terms", "destination": "/index.html" }
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" }
   ]
 }
