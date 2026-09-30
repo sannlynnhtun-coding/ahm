@@ -18,12 +18,6 @@ public sealed class ShopSetup
     public List<ShopReward> Rewards { get; set; } = [ShopReward.DefaultCashback()];
 }
 
-public sealed class LegacyShopSetup
-{
-    public string ShopName { get; set; } = "";
-    public string GasUrl { get; set; } = "";
-}
-
 public sealed class ShopPolicy
 {
     public int MinSpendPerStamp { get; set; } = 10000;

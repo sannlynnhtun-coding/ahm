@@ -2,10 +2,11 @@ window.ahmStore = (() => {
   let dbPromise;
   function database() {
     if (!dbPromise) dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open('ahm', 2);
+      const request = indexedDB.open('ahm', 3);
       request.onupgradeneeded = () => {
         const db = request.result;
-        for (const name of ['ShopCredentialsStore', 'ShopConnectionStore', 'PreferenceStore']) {
+        if (db.objectStoreNames.contains('ShopCredentialsStore')) db.deleteObjectStore('ShopCredentialsStore');
+        for (const name of ['ShopConnectionStore', 'PreferenceStore']) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
         }
       };

@@ -66,10 +66,6 @@ else if (page == "privacy")
                 <p>Google Sheet တွင် သိမ်းထားသော အချက်အလက်များအတွက် Google ၏ ဝန်ဆောင်မှုနှင့် ကိုယ်ရေးအချက်အလက် မူဝါဒများ သက်ဆိုင်သည်။ ဤဝဘ်ဆိုက်ကို ပို့ဆောင်ပေးသော hosting/CDN ဝန်ဆောင်မှုသည် ၎င်းတို့၏ မူဝါဒများအတိုင်း ပုံမှန် ဝင်ရောက်အသုံးပြုမှုမှတ်တမ်းများကို ကိုင်တွယ်နိုင်သည်။</p>
             </div>
             <div>
-                <h3 class="font-semibold text-zinc-900">QR link အဟောင်းများ</h3>
-                <p>QR link အဟောင်းကို ဖွင့်သည့်အခါ အမ်းသည် link ထဲရှိ code ကို ခဏတာ ဖတ်ရှုပြီး စာမျက်နှာအသစ်သို့ ပြန်ညွှန်းပေးသည်။ ထိုပြန်ညွှန်းပေးသည့် လုပ်ဆောင်ချက်သည် request သို့မဟုတ် ဖောက်သည်အချက်အလက်များကို သိမ်းဆည်းခြင်း၊ application log ရေးခြင်း မပြုပါ။</p>
-            </div>
-            <div>
                 <h3 class="font-semibold text-zinc-900">Google user data ကို မျှဝေခြင်းနှင့် အသုံးပြုမှု ကန့်သတ်ချက်</h3>
                 <p>အမ်းသည် Google user data ကို မရောင်းပါ၊ ကြော်ငြာ၊ credit ဆုံးဖြတ်ချက်၊ data broker သို့မဟုတ် AI/ML model လေ့ကျင့်ရေးအတွက် မသုံးပါ။ Google API များကို သဘောတူညီချက်မရှိသော အနီးကပ်ရုပ်ပုံ (non-consensual intimate imagery) များကို AI ဖြင့် ဖန်တီးခြင်း သို့မဟုတ် ကိုင်တွယ်ခြင်းအတွက်လည်း မသုံးပါ။ Google user data ကို အမ်း၏ user-facing loyalty လုပ်ဆောင်ချက်များ ပေးရန်အတွက်သာ အသုံးပြုပြီး Google API Services User Data Policy ၏ Limited Use လိုအပ်ချက်များကို လိုက်နာသည်။</p>
             </div>
@@ -104,10 +100,6 @@ else if (page == "privacy")
             <div>
                 <h3 class="font-semibold text-zinc-900">Google and website hosting</h3>
                 <p>Google's service and privacy policies apply to information stored in Google Sheets. The hosting/CDN service that delivers this website may process standard access logs under its own policies.</p>
-            </div>
-            <div>
-                <h3 class="font-semibold text-zinc-900">Older QR links</h3>
-                <p>When you open an older QR link, Ahm briefly reads its encoded information and redirects you to the new page. This redirect does not store request or customer data or write application logs.</p>
             </div>
             <div>
                 <h3 class="font-semibold text-zinc-900">Sharing and Limited Use</h3>
@@ -244,12 +236,6 @@ else if (page == "setup")
             </form>
         }
 
-        <details class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <summary class="cursor-pointer font-semibold">@T("Apps Script v2 ဆိုင် ပြောင်းရွှေ့မည်", "Migrate an Apps Script v2 shop")</summary>
-            <p class="mt-3 text-sm leading-6 text-zinc-700">@T("Old Sheet ကို Picker ဖြင့်ရွေးပြီး member state ကို v3 ledger သို့ ကူးမည်။ ပြီးလျှင် old tabs များကို Legacy_ အမည်ပြောင်းကာ stale Apps Script writes ကို ရပ်မည်။", "Choose the old Sheet in Picker. Ahm copies current member state into the v3 ledger, archives logs, then renames old tabs with Legacy_ to stop stale Apps Script writes.")</p>
-            <label class="mt-3 block text-sm">Legacy Apps Script URL<input type="url" @bind="legacyGasUrl" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3 font-mono text-xs" /></label>
-            <button type="button" disabled="@(!googleConnected || busy)" @onclick="MigrateLegacy" class="mt-3 rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("Old Sheet ရွေးပြီး migrate မည်", "Choose old Sheet and migrate")</button>
-        </details>
     </div>
 }
 else if (page == "cashier")

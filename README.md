@@ -8,7 +8,7 @@ Ahm is a .NET 10 static Blazor WebAssembly loyalty workspace for shop owners and
 - The token exists only in JavaScript/.NET runtime memory. Ahm never writes it to IndexedDB, LocalStorage, URLs, logs, or an Ahm server.
 - The browser calls Google Sheets and Drive APIs directly. Ahm servers do not persist shop or customer records.
 - IndexedDB stores only the selected Sheet ID, public shop ID, display settings, local staff label, and language preference. OAuth tokens and member records are not written there by v3.
-- A static host or CDN can still process standard access logs under its own terms. The legacy redirect transiently decrypts old QR codes without storing request or customer data.
+- A static host or CDN can still process standard access logs under its own terms.
 
 ## Google Cloud setup (maintainer, once)
 
@@ -51,27 +51,13 @@ The v3 tabs are:
 
 Customer links have the form `/member?s={publicShopId}&t={memberToken}`. That page exposes no name, phone, balance, stamps, or rewards; it only renders an identifier QR for authorized staff to scan.
 
-## Legacy v2 migration
-
-The migration panel on `/setup` lets an authorized editor choose the old Sheet in Picker. Ahm creates a new v3 Sheet, writes each current member as a `MIGRATION_SNAPSHOT`, copies historical logs to `Legacy_Transaction_Logs`, adds `Ahm_Migration_Lock`, and then renames the source tabs with `Legacy_`. The v2 script in this repository refuses writes when that lock exists. Deployments made from older script versions that do not recognize the lock must also be disabled in Apps Script.
-
-Existing member tokens are preserved. `api/member.js` decrypts old `?c=` codes and redirects to the new staff-only route. A deterministic public shop ID is derived with a separate HMAC subkey from `MEMBER_LINK_KEY`. The endpoint does not contact Apps Script or expose its URL. `api/sheets.js` remains only for a time-limited v2 grace period; the v3 client never calls it. `google-apps-script/Code.gs` is a legacy migration artifact, not onboarding material.
-
-Set a stable random 32-byte hex `MEMBER_LINK_KEY` in Vercel for legacy redirects:
-
-```sh
-openssl rand -hex 32
-```
-
-Changing the key invalidates old encrypted QR links and changes their derived public shop IDs.
-
 ## Automatic Vercel deployments
 
 The GitHub repository `sannlynnhtun-coding/ahm` is connected to the existing [Vercel project](https://vercel.com/sann-lynn-htuns-projects/ahm). Pushes to `main`, including merged pull requests, deploy to production. Pushes to other branches create preview deployments.
 
 [`vercel.json`](vercel.json) explicitly enables [automatic Git deployments](https://vercel.com/docs/project-configuration/git-configuration#git.deploymentenabled), installs dependencies with `npm ci`, and runs `bash scripts/vercel-build.sh`. The build script installs .NET 10 when needed, runs `npm run build`, and publishes the static site to `dist`.
 
-The production branch is configured as `main` in Vercel's project settings. Configure environment variables in Vercel for the environments that need them; `MEMBER_LINK_KEY` is required for legacy QR redirects. This deployment flow uses Vercel's GitHub integration and does not require GitHub Actions secrets.
+The production branch is configured as `main` in Vercel's project settings. This deployment flow uses Vercel's GitHub integration and does not require GitHub Actions secrets.
 
 ## Develop and verify
 
@@ -91,4 +77,4 @@ npm test
 npm run build
 ```
 
-Use a staging OAuth project with test users for mobile smoke tests. Verify owner creation, staff Picker selection, concurrent appends, QR staff lookup, migration, token expiry/reconnect, and Burmese/English preference persistence. Google and hosting quotas/policies still apply even though Ahm charges no subscription and runs no application database.
+Use a staging OAuth project with test users for mobile smoke tests. Verify owner creation, staff Picker selection, concurrent appends, QR staff lookup, token expiry/reconnect, and Burmese/English preference persistence. Google and hosting quotas/policies still apply even though Ahm charges no subscription and runs no application database.

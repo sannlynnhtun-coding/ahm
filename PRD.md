@@ -22,8 +22,7 @@ Owner/staff mobile browser
 
 Ahm static host
   ├─ serves Blazor/CSS/JS/privacy/terms
-  ├─ legacy QR redirect (stateless)
-  └─ temporary v2 Apps Script relay (never called by v3)
+  └─ stores no shop or customer records
 ```
 
 The public build contains only the OAuth client ID, restricted Picker API key, and project number. It contains no client secret. A token expires in memory and cannot be silently refreshed; writes stop until a user gesture reconnects Google.
@@ -43,7 +42,7 @@ The required tabs are `Ahm_Meta`, `Shop_Config`, `Reward_Catalog`, `Event_Ledger
 7. `Payload_JSON`
 8. `Schema_Version`
 
-Supported events are `MIGRATION_SNAPSHOT`, `MEMBER_ENROLLED`, `PURCHASE_RECORDED`, `REWARD_SELECTED`, `REWARD_REDEEMED`, and `CASHBACK_PAID`.
+Supported events are `MEMBER_ENROLLED`, `PURCHASE_RECORDED`, `REWARD_SELECTED`, `REWARD_REDEEMED`, and `CASHBACK_PAID`.
 
 Every transaction is appended with `values.append`; existing ledger rows are never updated. The fold follows Sheet row order, accepts only the first occurrence of an `Event_ID`, and deterministically rejects duplicate enrollment, insufficient credits/balance, sold-out stock, duplicate redemption, malformed payloads, and invalid versions. `Member_Summary` can be rebuilt and is never authoritative.
 
@@ -57,13 +56,9 @@ A purchase event embeds its policy. A selection embeds reward name, type, value,
 - API quota responses use bounded backoff. Retried append bodies retain the same event ID.
 - Google authorization denial, Picker cancellation, network errors, schema mismatch, and expired authorization must produce actionable UI errors.
 
-## QR and migration
+## Customer QR
 
 New identifiers use `/member?s={publicShopId}&t={memberToken}`. The public page reveals no private member state. If authorized staff open the link on a connected device, they can continue to staff lookup.
-
-Migration selects the v2 Sheet, creates a v3 Sheet, writes current members/rewards/claims as snapshot events, copies logs to an archive tab, preserves member tokens, and only after successful destination writes renames old operational tabs with `Legacy_`.
-
-The legacy redirect decrypts old AES-GCM codes and derives a stable `PublicShopId` using a purpose-specific HMAC subkey. It returns only a redirect to the new route, uses `Cache-Control: no-store` and `Referrer-Policy: no-referrer`, and writes no application logs.
 
 ## Security and privacy acceptance
 
@@ -71,13 +66,12 @@ The legacy redirect decrypts old AES-GCM codes and derives a stable `PublicShopI
 - CSP permits only the application and required Google Identity/Picker/API origins; untrusted scripts are blocked.
 - Sheet IDs, event payload sizes, and numeric values are validated.
 - API keys are origin/API restricted and documented.
-- Privacy text distinguishes Ahm application persistence from ordinary infrastructure access logs and legacy transient processing.
+- Privacy text distinguishes Ahm application persistence from ordinary infrastructure access logs.
 - Production requires verified domain, public privacy/terms pages, configured OAuth brand, and Google’s required verification.
 
 ## Release acceptance
 
 - Pure fold tests cover duplicate IDs, row ordering, duplicate enrollment, carried spend, multiple card completion, stock contention, immutable snapshots, redemption, payout, and malformed input.
 - Adapter tests cover memory-only tokens, expiry, Picker cancellation, read-only sheets, schema mismatch, retry/backoff, and append idempotency.
-- Migration tests preserve v2 state/tokens and archive safely before disabling old writes.
 - Mobile tests cover owner create, staff select, multi-session appends, QR staff lookup, and language persistence.
 - `npm test` and the production build pass before deployment; OAuth behavior is smoke-tested with staging test users.

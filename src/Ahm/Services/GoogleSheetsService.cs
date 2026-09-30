@@ -41,10 +41,4 @@ public sealed class GoogleSheetsService(IJSRuntime js)
         };
         return js.InvokeAsync<GoogleShopState>("ahmGoogle.appendEvent", setup.SpreadsheetId, ledgerEvent, setup.StaffLabel);
     }
-
-    public ValueTask<GoogleShopState> MigrateLegacyAsync(string gasUrl, string actorLabel) =>
-        js.InvokeAsync<GoogleShopState>("ahmGoogle.migrateLegacy", gasUrl, actorLabel);
-
-    public ValueTask<string> ResolveLegacyPathAsync(string gasUrl, string memberToken) =>
-        js.InvokeAsync<string>("ahmGoogle.resolveLegacyPath", gasUrl, memberToken);
 }

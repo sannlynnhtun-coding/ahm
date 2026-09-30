@@ -1,7 +1,6 @@
 export const SCHEMA_VERSION = 3;
 
 export const EVENT_TYPES = Object.freeze([
-  'MIGRATION_SNAPSHOT',
   'MEMBER_ENROLLED',
   'PURCHASE_RECORDED',
   'REWARD_SELECTED',
@@ -151,33 +150,6 @@ export function foldLedger(inputRows, rewardCatalog = []) {
     }
 
     const member = membersByToken.get(event.memberToken);
-    if (event.eventType === 'MIGRATION_SNAPSHOT') {
-      if (!event.memberToken || membersByToken.has(event.memberToken) ||
-          (event.phoneNumber && tokensByPhone.has(event.phoneNumber))) {
-        diagnostic(diagnostics, index, event, 'DUPLICATE_ENROLLMENT');
-        continue;
-      }
-      const migrated = emptyMember(event.memberToken, event.phoneNumber || payload.phone);
-      migrated.name = clean(payload.name, 160);
-      migrated.stamps = Math.max(0, number(payload.stamps));
-      migrated.spendRemainder = Math.max(0, number(payload.spendRemainder));
-      migrated.rewardCredits = Math.max(0, number(payload.rewardCredits));
-      migrated.availableCashback = Math.max(0, number(payload.availableCashback));
-      migrated.lifetimeCashback = Math.max(migrated.availableCashback, number(payload.lifetimeCashback));
-      migrated.lastVisit = clean(payload.lastVisit || event.occurredAtUtc, 64);
-      migrated.claims = Array.isArray(payload.claims) ? payload.claims.map(clone).slice(0, 200) : [];
-      migrated.history = Array.isArray(payload.history) ? payload.history.map(clone).slice(0, 50) : [];
-      for (const claim of migrated.claims) {
-        if (claim?.stockLimited && claim.rewardId) {
-          const key = clean(claim.rewardId, 128);
-          selectedStock.set(key, (selectedStock.get(key) || 0) + 1);
-        }
-      }
-      membersByToken.set(migrated.token, migrated);
-      if (migrated.phone) tokensByPhone.set(migrated.phone, migrated.token);
-      acceptedEventCount++;
-      continue;
-    }
 
     if (event.eventType === 'MEMBER_ENROLLED') {
       const phone = event.phoneNumber || clean(payload.phone, 64);

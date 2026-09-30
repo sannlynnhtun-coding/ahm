@@ -1,5 +1,4 @@
 import { foldLedger, eventToRow, newEvent, SCHEMA_VERSION } from './ledger.js';
-import { buildMigrationPlan } from './migration.js';
 
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files';
@@ -382,69 +381,6 @@ function makeEvent(input) {
   );
 }
 
-async function legacyPublicShopId(gasUrl) {
-  const response = await fetch('/api/member', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'legacy-shop-id', url: text(gasUrl, 2048) })
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.publicShopId) throw new Error(result.error || 'LEGACY_ID_FAILED');
-  return result.publicShopId;
-}
-
-async function resolveLegacyPath(gasUrl, token) {
-  const response = await fetch('/api/member', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'legacy-path', url: text(gasUrl, 2048), token: text(token, 128) })
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.path) throw new Error(result.error || 'LEGACY_PATH_FAILED');
-  return result.path;
-}
-
-async function migrateLegacy(gasUrl, actorLabel = '') {
-  const picked = await pickSpreadsheet();
-  await verifyEditable(picked.spreadsheetId);
-  const oldMetadata = await apiRequest(`${SHEETS_API}/${encodeURIComponent(picked.spreadsheetId)}?fields=sheets.properties`);
-  const oldTitles = new Set((oldMetadata.sheets || []).map(sheet => sheet.properties.title));
-  if (['Member_Cards', 'Transaction_Logs', 'Shop_Config'].some(title => !oldTitles.has(title)))
-    throw new Error('LEGACY_SCHEMA_MISMATCH');
-  const legacyRanges = [
-    ['members', 'Member_Cards!A:J', 'Member_Cards'], ['logs', 'Transaction_Logs!A:G', 'Transaction_Logs'],
-    ['config', 'Shop_Config!A:B', 'Shop_Config'], ['rewards', 'Reward_Catalog!A:I', 'Reward_Catalog'],
-    ['claims', 'Member_Rewards!A:L', 'Member_Rewards']
-  ].filter(([, , title]) => oldTitles.has(title));
-  const response = await readRanges(picked.spreadsheetId, legacyRanges.map(([, range]) => range));
-  const source = Object.fromEntries(legacyRanges.map(([key], index) => [key, response.valueRanges?.[index]?.values || []]));
-  const publicShopId = await legacyPublicShopId(gasUrl);
-  const plan = buildMigrationPlan(source, { publicShopId, actorLabel, defaultShopName: picked.name, occurredAtUtc: new Date().toISOString() });
-  const newState = await createShop(plan.setup, publicShopId);
-  const rows = plan.ledgerRows;
-  if (rows.length) {
-    const range = encodeURIComponent('Event_Ledger!A:H');
-    await apiRequest(`${SHEETS_API}/${encodeURIComponent(newState.setup.spreadsheetId)}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
-      method: 'POST', body: JSON.stringify({ majorDimension: 'ROWS', values: rows })
-    });
-  }
-  const newMetadata = await apiRequest(`${SHEETS_API}/${encodeURIComponent(newState.setup.spreadsheetId)}?fields=sheets.properties`);
-  const addArchive = await apiRequest(`${SHEETS_API}/${encodeURIComponent(newState.setup.spreadsheetId)}:batchUpdate`, {
-    method: 'POST', body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Legacy_Transaction_Logs' } } }] })
-  }).catch(() => null);
-  if (plan.archiveRows.length && (addArchive || newMetadata)) {
-    await updateValues(newState.setup.spreadsheetId, [{ range: 'Legacy_Transaction_Logs!A1:G50000', values: plan.archiveRows }]);
-  }
-  const legacyNames = new Set((oldMetadata.sheets || []).map(sheet => sheet.properties.title));
-  const renameRequests = (oldMetadata.sheets || []).filter(sheet => ['Member_Cards', 'Transaction_Logs', 'Shop_Config', 'Reward_Catalog', 'Member_Rewards'].includes(sheet.properties.title)).map(sheet => {
-    let title = `Legacy_${sheet.properties.title}`;
-    if (legacyNames.has(title)) title = `Legacy_${Date.now()}_${sheet.properties.title}`;
-    return { updateSheetProperties: { properties: { sheetId: sheet.properties.sheetId, title }, fields: 'title' } };
-  });
-  if (!legacyNames.has('Ahm_Migration_Lock'))
-    renameRequests.unshift({ addSheet: { properties: { title: 'Ahm_Migration_Lock' } } });
-  if (renameRequests.length) await apiRequest(`${SHEETS_API}/${encodeURIComponent(picked.spreadsheetId)}:batchUpdate`, { method: 'POST', body: JSON.stringify({ requests: renameRequests }) });
-  return loadShop(newState.setup.spreadsheetId, actorLabel);
-}
-
 function configure(options) {
   config = {
     clientId: text(value(options, 'clientId'), 512),
@@ -460,9 +396,9 @@ function connectionState() {
 
 const publicApi = {
   configure, authorize, disconnect, connectionState, pickSpreadsheet, connectExisting,
-  createShop, loadShop, saveConfiguration, appendEvent, makeEvent, migrateLegacy, resolveLegacyPath
+  createShop, loadShop, saveConfiguration, appendEvent, makeEvent
 };
 
 if (typeof window !== 'undefined') window.ahmGoogle = publicApi;
 
-export { configure, authorize, disconnect, pickSpreadsheet, connectExisting, createShop, loadShop, saveConfiguration, appendEvent, makeEvent, migrateLegacy, validSheetId };
+export { configure, authorize, disconnect, pickSpreadsheet, connectExisting, createShop, loadShop, saveConfiguration, appendEvent, makeEvent, validSheetId };

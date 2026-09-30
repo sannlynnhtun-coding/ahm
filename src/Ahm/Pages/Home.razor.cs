@@ -11,7 +11,7 @@ public partial class Home : IDisposable
 {
     private static readonly Regex IdentifierPattern = new("^[A-Za-z0-9_-]{8,160}$", RegexOptions.Compiled);
     private bool loaded, busy, messageIsError, googleConfigured, googleConnected, showEnroll, validMemberLink, burmese = true;
-    private string page = "", message = "", lookup = "", newName = "", legacyGasUrl = "", publicShopId = "", memberToken = "";
+    private string page = "", message = "", lookup = "", newName = "", publicShopId = "", memberToken = "";
     private int spend;
     private ShopSetup setup = new();
     private GoogleShopState state = new();
@@ -55,26 +55,11 @@ public partial class Home : IDisposable
             googleConfigured = options.IsConfigured;
             var connection = await Sheets.ConfigureAsync(options);
             googleConnected = connection.Connected;
-            var legacy = await Store.GetLegacySetupAsync();
-            legacyGasUrl = legacy?.GasUrl ?? legacyGasUrl;
-
             if (page == "member")
             {
                 var uri = new Uri(Nav.Uri);
-                var legacyCode = Query(uri, "c");
-                if (!string.IsNullOrWhiteSpace(legacyCode))
-                {
-                    Nav.NavigateTo("/api/member?code=" + Uri.EscapeDataString(legacyCode), forceLoad: true);
-                    return;
-                }
                 publicShopId = Query(uri, "s");
                 memberToken = Query(uri, "t");
-                if (ValidLegacyUrl(publicShopId) && Regex.IsMatch(memberToken, "^[0-9a-f-]{36}$", RegexOptions.IgnoreCase))
-                {
-                    var path = await Sheets.ResolveLegacyPathAsync(publicShopId, memberToken);
-                    Nav.NavigateTo(path, replace: true);
-                    return;
-                }
                 validMemberLink = IdentifierPattern.IsMatch(publicShopId) && IdentifierPattern.IsMatch(memberToken);
             }
             else if (page == "cashier" && string.IsNullOrWhiteSpace(setup.SpreadsheetId))
@@ -162,17 +147,6 @@ public partial class Home : IDisposable
     {
         if (reward.Active) reward.Active = false;
         else setup.Rewards.Remove(reward);
-    }
-
-    private async Task MigrateLegacy()
-    {
-        if (!googleConnected || busy) return;
-        if (!ValidLegacyUrl(legacyGasUrl)) { SetError(T("မှန်ကန်သော legacy /exec URL ထည့်ပါ။", "Enter a valid legacy /exec URL.")); return; }
-        await Run(async () =>
-        {
-            await ApplyState(await Sheets.MigrateLegacyAsync(legacyGasUrl, setup.StaffLabel));
-            message = T("Migration ပြီးပါပြီ။ Old Sheet ကို archive အဖြစ်ထားပြီး tabs များကို Legacy_ ဟု အမည်ပြောင်းထားသည်။", "Migration is complete. The old Sheet remains as an archive and its tabs were renamed with Legacy_.");
-        });
     }
 
     private async Task FindMember()
@@ -312,7 +286,6 @@ public partial class Home : IDisposable
 
     private static string NormalizePhone(string value) => new(value.Where(character => char.IsDigit(character) || character == '+').ToArray());
     private static string Query(Uri uri, string key) => uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries).Select(part => part.Split('=', 2)).Where(pair => Uri.UnescapeDataString(pair[0]) == key).Select(pair => pair.Length > 1 ? Uri.UnescapeDataString(pair[1]) : "").FirstOrDefault() ?? "";
-    private static bool ValidLegacyUrl(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == "https" && uri.Host == "script.google.com" && uri.AbsolutePath.EndsWith("/exec", StringComparison.Ordinal);
     private static string Money(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
     private static string RewardLabel(ShopReward reward) => reward.Type switch { "CASHBACK" => $"{Money(reward.Value)} MMK", "PERCENT_DISCOUNT" => $"{reward.Value}% (cap {Money(reward.MaxDiscount)})", _ => "Free item" };
     private int? RemainingStock(ShopReward reward) => reward.StockQuantity is int cap ? Math.Max(0, cap - state.StockUsed.GetValueOrDefault(reward.Id)) : null;
@@ -331,7 +304,7 @@ public partial class Home : IDisposable
         var value = exception.Message;
         if (value.Contains("AUTH_EXPIRED")) { googleConnected = false; value = T("Google session သက်တမ်းကုန်သွားသည်။ Reconnect Google ကို နှိပ်ပါ။", "The Google session expired. Click Reconnect Google."); }
         else if (value.Contains("PICKER_CANCELLED")) value = T("Sheet ရွေးချယ်မှု ပယ်ဖျက်ခဲ့သည်။", "Sheet selection was cancelled.");
-        else if (value.Contains("SCHEMA_MISMATCH")) value = T("ဤ Sheet သည် Ahm schema v3 မဟုတ်ပါ။ Migration ကို သုံးပါ။", "This is not an Ahm schema v3 Sheet. Use migration instead.");
+        else if (value.Contains("SCHEMA_MISMATCH")) value = T("ဤ Sheet သည် Ahm Sheet မဟုတ်ပါ။ Ahm ဖြင့် ဖန်တီးထားသော Sheet ကို ရွေးပါ။", "This is not an Ahm Sheet. Choose a Sheet created by Ahm.");
         else if (value.Contains("SHEET_NOT_EDITABLE")) value = T("ဤ Sheet တွင် Editor access လိုပါသည်။", "Editor access to this Sheet is required.");
         else if (value.Contains("QR_SHOP_MISMATCH")) value = T("ဤ QR သည် ချိတ်ထားသော ဆိုင်နှင့် မကိုက်ပါ။", "This QR belongs to a different shop.");
         else if (value.Contains("EVENT_REJECTED:REWARD_SOLD_OUT")) value = T("ဤ reward ကို အခြားဝန်ထမ်းက ရွေးပြီး stock ကုန်သွားပါပြီ။", "Another staff member took the last available reward.");

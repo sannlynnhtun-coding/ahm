@@ -18,17 +18,8 @@ function event(eventId, eventType, memberToken, payload = {}, overrides = {}) {
   };
 }
 
-function migrated(eventId, memberToken, phoneNumber, values = {}) {
-  return event(eventId, 'MIGRATION_SNAPSHOT', memberToken, {
-    name: values.name ?? 'Member',
-    stamps: values.stamps ?? 0,
-    spendRemainder: values.spendRemainder ?? 0,
-    rewardCredits: values.rewardCredits ?? 0,
-    availableCashback: values.availableCashback ?? 0,
-    lifetimeCashback: values.lifetimeCashback ?? 0,
-    claims: values.claims ?? [],
-    history: values.history ?? []
-  }, { phoneNumber });
+function enrolled(eventId, memberToken, phoneNumber, name = 'Member') {
+  return event(eventId, 'MEMBER_ENROLLED', memberToken, { name }, { phoneNumber });
 }
 
 function purchase(eventId, memberToken, amount, minSpendPerStamp = 10_000, maxStamps = 3) {
@@ -78,10 +69,10 @@ test('fold uses the first event ID and enrollment in Sheet row order', () => {
 
 test('purchase policy snapshots preserve carried spend and multiple card completions', () => {
   const result = foldLedger([
-    migrated('snapshot-a', tokenA, '09111111111'),
+    enrolled('enroll-a', tokenA, '09111111111'),
     purchase('purchase-a1', tokenA, 25_000),
     purchase('purchase-a2', tokenA, 5_000),
-    migrated('snapshot-b', tokenB, '09222222222'),
+    enrolled('enroll-b', tokenB, '09222222222'),
     purchase('purchase-b1', tokenB, 75_000)
   ]);
 
@@ -106,8 +97,10 @@ test('finite reward stock is awarded by row order rather than timestamp', () => 
     maxDiscount: 0, stockQuantity: 1, active: true
   };
   const base = [
-    migrated('snapshot-a', tokenA, '09111111111', { rewardCredits: 1 }),
-    migrated('snapshot-b', tokenB, '09222222222', { rewardCredits: 1 })
+    enrolled('enroll-a', tokenA, '09111111111'),
+    purchase('earn-a', tokenA, 30_000),
+    enrolled('enroll-b', tokenB, '09222222222'),
+    purchase('earn-b', tokenB, 30_000)
   ];
   const selectionA = event('select-a', 'REWARD_SELECTED', tokenA, { claimId: 'claim-a', reward }, {
     occurredAtUtc: '2026-09-29T03:00:00.000Z'
@@ -129,7 +122,8 @@ test('finite reward stock is awarded by row order rather than timestamp', () => 
 
 test('redemption uses the selected reward snapshot and cannot be applied twice', () => {
   const result = foldLedger([
-    migrated('snapshot', tokenA, '09111111111', { rewardCredits: 1 }),
+    enrolled('enroll', tokenA, '09111111111'),
+    purchase('earn', tokenA, 30_000),
     event('select', 'REWARD_SELECTED', tokenA, {
       claimId: 'discount-claim',
       reward: {
@@ -164,7 +158,8 @@ test('cashback mutations validate balances and malformed events do not stop late
   const oversizedPayload = JSON.stringify({ note: 'x'.repeat(20_001) });
   const result = foldLedger([
     { eventId: '', eventType: 'MEMBER_ENROLLED', memberToken: tokenB, payload: {}, schemaVersion: SCHEMA_VERSION },
-    migrated('snapshot', tokenA, '09111111111', { rewardCredits: 1 }),
+    enrolled('enroll', tokenA, '09111111111'),
+    purchase('earn', tokenA, 30_000),
     event('bad-json', 'PURCHASE_RECORDED', tokenA, '{'),
     event('unsafe-money', 'PURCHASE_RECORDED', tokenA, {
       amount: Number.MAX_SAFE_INTEGER + 1,
@@ -184,7 +179,7 @@ test('cashback mutations validate balances and malformed events do not stop late
   assert.equal(member.availableCashback, 2_000);
   assert.equal(member.lifetimeCashback, 5_000);
   assert.equal(member.stamps, 1);
-  assert.equal(result.acceptedEventCount, 4);
+  assert.equal(result.acceptedEventCount, 5);
   assert.deepEqual(result.diagnostics.map(item => item.reason), [
     'INVALID_EVENT', 'MALFORMED_PAYLOAD', 'UNSAFE_NUMBER', 'MALFORMED_PAYLOAD',
     'INVALID_CASHBACK_PAYOUT', 'INVALID_CASHBACK_PAYOUT'
