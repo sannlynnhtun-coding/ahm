@@ -15,9 +15,12 @@
 <PageTitle>@Title</PageTitle>
 @if (page == "member") { <HeadContent><meta name="robots" content="noindex,nofollow" /><meta name="referrer" content="no-referrer" /></HeadContent> }
 
-<div class="mb-5 flex justify-end">
-    <button type="button" @onclick="ToggleLanguage" class="rounded-lg border border-zinc-200 bg-white px-3 text-xs font-semibold">@(burmese ? "English" : "မြန်မာ")</button>
-</div>
+@if (page is not ("privacy" or "terms"))
+{
+    <div class="mb-5 flex justify-end">
+        <button type="button" @onclick="ToggleLanguage" class="rounded-lg border border-zinc-200 bg-white px-3 text-xs font-semibold">@(burmese ? "English" : "မြန်မာ")</button>
+    </div>
+}
 
 @if (!string.IsNullOrEmpty(message))
 {
@@ -32,21 +35,118 @@
 }
 else if (page == "privacy")
 {
-    <article class="prose prose-zinc rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <article class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Privacy</p>
-        <h1 class="mt-2 text-xl font-semibold">@T("ကိုယ်ရေးအချက်အလက် မူဝါဒ", "Privacy Policy")</h1>
-        <p class="mt-4 text-sm leading-7">@T("အမ်း application သည် Google access token၊ ဆိုင်မှတ်တမ်း သို့မဟုတ် customer မှတ်တမ်းများကို အမ်း server တွင် သိမ်းဆည်းခြင်း မပြုပါ။ Google token ကို browser memory ထဲတွင် session အတွင်းသာ ထားပြီး ဆိုင်၏ Google Sheet ကို browser မှ တိုက်ရိုက်ဖတ်/ရေးသည်။", "The Ahm application does not persist Google tokens or shop/customer records. A Google token exists only in browser memory for the active session, and the browser reads and writes the shop's Google Sheet directly.")</p>
-        <p class="mt-3 text-sm leading-7">@T("Sheet ID၊ public shop ID၊ staff label နှင့် UI preference ကဲ့သို့ secret မဟုတ်သော ဆက်သွယ်မှု setting များကို browser IndexedDB ထဲ သိမ်းနိုင်သည်။ Static host/CDN သည် ၎င်းတို့၏ terms အတိုင်း ပုံမှန် access log များကို process လုပ်နိုင်သည်။", "Non-secret connection settings such as the Sheet ID, public shop ID, staff label and UI preferences may be stored in browser IndexedDB. The static host/CDN may process standard access logs under its own terms.")</p>
-        <p class="mt-3 text-sm leading-7">@T("Legacy QR redirect သည် code ကို ခဏတာ decrypt လုပ်ပြီး route အသစ်သို့ ပြန်ညွှန်းပေးသော်လည်း request/customer data ကို သိမ်းခြင်း သို့မဟုတ် application log ရေးခြင်း မပြုပါ။", "The legacy QR redirect transiently decrypts the code and redirects to the new route; it does not store request/customer data or write application logs.")</p>
+        <h1 class="mt-2 text-xl font-semibold"><span lang="my" class="block">ကိုယ်ရေးအချက်အလက် မူဝါဒ</span><span lang="en" class="mt-1 block">Privacy Policy</span></h1>
+        <nav aria-label="Privacy policy languages" class="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+            <a href="/privacy#privacy-myanmar" lang="my" class="inline-flex min-h-11 items-center text-brand-700 underline">မြန်မာ</a>
+            <a href="/privacy#privacy-english" lang="en" class="inline-flex min-h-11 items-center text-brand-700 underline">English</a>
+        </nav>
+        <section lang="my" aria-labelledby="privacy-myanmar" class="mt-6 space-y-5 text-sm leading-7 text-zinc-700">
+            <h2 id="privacy-myanmar" class="text-base font-semibold text-brand-800">မြန်မာ</h2>
+            <p>အမ်း (Ahm) ကို အသုံးပြုသည့်အခါ ဆိုင်နှင့် ဖောက်သည်အချက်အလက်များကို မည်သို့ ကိုင်တွယ်သည်ကို ဤစာမျက်နှာတွင် ရှင်းပြထားသည်။</p>
+            <div>
+                <h3 class="font-semibold text-zinc-900">ဆိုင်နှင့် ဖောက်သည်မှတ်တမ်းများ</h3>
+                <p>ဖောက်သည်အမည်၊ ဖုန်းနံပါတ်၊ ဝယ်ယူမှုနှင့် ဆုလက်ဆောင်မှတ်တမ်းများကို ဆိုင်က ရွေးချယ်ချိတ်ဆက်ထားသော Google Sheet တွင် သိမ်းဆည်းသည်။ သင့် browser သည် ထို Sheet ကို တိုက်ရိုက် ဖတ်ရှု၊ ရေးသားသည်။ အမ်း၏ ဆာဗာတွင် ထိုမှတ်တမ်းများ၏ မိတ္တူကို မသိမ်းဆည်းပါ။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Google ခွင့်ပြုချက်နှင့် ချိတ်ဆက်မှု</h3>
+                <p>အမ်းသည် အမ်းနှင့်အတူ ဖန်တီးထားသော သို့မဟုတ် ရွေးချယ်ချိတ်ဆက်ထားသော Google Drive ဖိုင်များကို ဖတ်ရှု၊ ပြင်ဆင်၊ ဖန်တီး၊ ဖျက်နိုင်သည့် <code>drive.file</code> ခွင့်ပြုချက်ကို တောင်းခံသည်။ Google ချိတ်ဆက်မှုအတွက် အသုံးပြုသော access token ကို လက်ရှိ browser session ၏ memory ထဲတွင်သာ ထားသည်။ စာမျက်နှာ ပြန်ဖွင့်ခြင်း သို့မဟုတ် token သက်တမ်းကုန်ခြင်းတွင် Google ကို ပြန်ချိတ်ရန် လိုနိုင်သည်။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">ဤစက်တွင် သိမ်းထားသော setting များ</h3>
+                <p>ချိတ်ထားသော Sheet ကို မှတ်မိစေရန်နှင့် သင်၏ ရွေးချယ်မှုများကို မှတ်ထားရန် Sheet ID၊ ဆိုင် ID၊ ဝန်ထမ်းအမည်နှင့် ဘာသာစကားကဲ့သို့ setting များကို ဤ browser တွင် သိမ်းထားနိုင်သည်။ ထို browser storage တွင် Google access token နှင့် ဖောက်သည်မှတ်တမ်းများကို အမ်းက မသိမ်းဆည်းပါ။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">ဝန်ထမ်းများနှင့် ဖောက်သည် QR link များ</h3>
+                <p>အမ်းတွင် ဖောက်သည်မှတ်တမ်းကို ကြည့်ရန် ဝန်ထမ်းသည် ချိတ်ထားသော Google Sheet ကို ပြင်ဆင်ခွင့်ရှိပြီး Google ကို ခွင့်ပြုချိတ်ဆက်ထားရမည်။ ဖောက်သည်၏ QR link သည် အမှတ်အသားကိုသာ ပြသပြီး အမည်၊ ဖုန်းနံပါတ်၊ လက်ကျန်နှင့် ဆုလက်ဆောင်များကို အများပြည်သူအား မပြသပါ။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Google နှင့် ဝဘ်ဆိုက် hosting</h3>
+                <p>Google Sheet တွင် သိမ်းထားသော အချက်အလက်များအတွက် Google ၏ ဝန်ဆောင်မှုနှင့် ကိုယ်ရေးအချက်အလက် မူဝါဒများ သက်ဆိုင်သည်။ ဤဝဘ်ဆိုက်ကို ပို့ဆောင်ပေးသော hosting/CDN ဝန်ဆောင်မှုသည် ၎င်းတို့၏ မူဝါဒများအတိုင်း ပုံမှန် ဝင်ရောက်အသုံးပြုမှုမှတ်တမ်းများကို ကိုင်တွယ်နိုင်သည်။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">QR link အဟောင်းများ</h3>
+                <p>QR link အဟောင်းကို ဖွင့်သည့်အခါ အမ်းသည် link ထဲရှိ code ကို ခဏတာ ဖတ်ရှုပြီး စာမျက်နှာအသစ်သို့ ပြန်ညွှန်းပေးသည်။ ထိုပြန်ညွှန်းပေးသည့် လုပ်ဆောင်ချက်သည် request သို့မဟုတ် ဖောက်သည်အချက်အလက်များကို သိမ်းဆည်းခြင်း၊ application log ရေးခြင်း မပြုပါ။</p>
+            </div>
+        </section>
+        <section lang="en" aria-labelledby="privacy-english" class="mt-8 space-y-5 border-t border-zinc-200 pt-6 text-sm leading-7 text-zinc-700">
+            <h2 id="privacy-english" class="text-base font-semibold text-brand-800">English</h2>
+            <p>This page explains how Ahm handles shop and customer information when you use the app.</p>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Shop and customer records</h3>
+                <p>Customer names, phone numbers, purchases and reward records are stored in the Google Sheet selected by the shop. Your browser reads and writes that Sheet directly. Ahm does not keep a copy of these records on its servers.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Google permission and connection</h3>
+                <p>Ahm requests the <code>drive.file</code> permission to read, edit, create and delete Google Drive files created with or selected for the app. The access token used for this connection stays in memory for the current browser session. You may need to reconnect Google after reloading the page or when the token expires.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Settings saved on this device</h3>
+                <p>To remember your connected Sheet and preferences, Ahm may save settings such as the Sheet ID, shop ID, staff label and language in this browser. Ahm does not save Google access tokens or customer records in that browser storage.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Staff access and customer QR links</h3>
+                <p>To view customer records in Ahm, staff must have editing access to the connected Google Sheet and authorise their Google connection. A customer's QR link shows an identifier only. It does not publicly display their name, phone number, balance or rewards.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Google and website hosting</h3>
+                <p>Google's service and privacy policies apply to information stored in Google Sheets. The hosting/CDN service that delivers this website may process standard access logs under its own policies.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Older QR links</h3>
+                <p>When you open an older QR link, Ahm briefly reads its encoded information and redirects you to the new page. This redirect does not store request or customer data or write application logs.</p>
+            </div>
+        </section>
     </article>
 }
 else if (page == "terms")
 {
     <article class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Terms</p>
-        <h1 class="mt-2 text-xl font-semibold">@T("အသုံးပြုမှု စည်းကမ်းချက်များ", "Terms of Service")</h1>
-        <p class="mt-4 text-sm leading-7">@T("အမ်းသည် အခမဲ့ community tool ဖြစ်ပြီး Google Sheets နှင့် static hosting quota/policy များအပေါ် မူတည်သည်။ ဆိုင်၏ Sheet Editor အားလုံးကို trusted operator အဖြစ် သတ်မှတ်ထားသည်။", "Ahm is a free community tool subject to Google Sheets and static-hosting quotas and policy changes. Every editor of a shop's Sheet is treated as a trusted operator.")</p>
-        <p class="mt-3 text-sm leading-7">@T("ဆိုင်ပိုင်ရှင်သည် Sheet sharing၊ customer consent၊ reward terms နှင့် backup များကို စီမံရန် တာဝန်ရှိသည်။ အမ်းသည် payment processor သို့မဟုတ် accounting system မဟုတ်ပါ။", "The shop owner is responsible for Sheet sharing, customer consent, reward terms and backups. Ahm is not a payment processor or accounting system.")</p>
+        <h1 class="mt-2 text-xl font-semibold"><span lang="my" class="block">အသုံးပြုမှု စည်းကမ်းချက်များ</span><span lang="en" class="mt-1 block">Terms of Service</span></h1>
+        <nav aria-label="Terms languages" class="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+            <a href="/terms#terms-myanmar" lang="my" class="inline-flex min-h-11 items-center text-brand-700 underline">မြန်မာ</a>
+            <a href="/terms#terms-english" lang="en" class="inline-flex min-h-11 items-center text-brand-700 underline">English</a>
+        </nav>
+        <section lang="my" aria-labelledby="terms-myanmar" class="mt-6 space-y-5 text-sm leading-7 text-zinc-700">
+            <h2 id="terms-myanmar" class="text-base font-semibold text-brand-800">မြန်မာ</h2>
+            <div>
+                <h3 class="font-semibold text-zinc-900">အမ်းကို အသုံးပြုခြင်း</h3>
+                <p>အမ်း (Ahm) သည် ဆိုင်များက ဝယ်ယူမှု၊ တံဆိပ်နှင့် ဆုလက်ဆောင်မှတ်တမ်းများကို မိမိတို့၏ Google Sheet ဖြင့် စီမံရန် အခမဲ့ အသုံးပြုနိုင်သော community tool ဖြစ်သည်။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">ဆိုင်ပိုင်ရှင်၏ တာဝန်များ</h3>
+                <p>ဆိုင်ပိုင်ရှင်သည် Sheet မျှဝေခွင့်၊ ဖောက်သည်အချက်အလက် စုဆောင်းအသုံးပြုရန် သဘောတူညီချက်၊ ဆုလက်ဆောင် စည်းကမ်းများနှင့် မှတ်တမ်း backup များကို စီမံရန် တာဝန်ရှိသည်။ ဖောက်သည်များသည် မှတ်တမ်းပြင်ဆင်ခြင်းနှင့် ဆုလက်ဆောင်ဆိုင်ရာ မေးခွန်းများအတွက် သက်ဆိုင်ရာဆိုင်သို့ တိုက်ရိုက် ဆက်သွယ်သင့်သည်။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">ဝန်ထမ်းများ၏ ပြင်ဆင်ခွင့်</h3>
+                <p>ဆိုင်၏ Google Sheet တွင် Editor ခွင့်ရှိသူတိုင်းကို ယုံကြည်ရသော ဝန်ထမ်းအဖြစ် အမ်းက သတ်မှတ်သည်။ ထိုသူများသည် Google Sheets မှတစ်ဆင့်လည်း ဆိုင်၏ မှတ်တမ်းများကို ကြည့်ရှု၊ ပြင်ဆင်နိုင်သောကြောင့် ဆိုင်ပိုင်ရှင်သည် ယုံကြည်ရသူများကိုသာ ထိုခွင့်ပေးသင့်သည်။</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">ဝန်ဆောင်မှု ကန့်သတ်ချက်များ</h3>
+                <p>အမ်းကို အသုံးပြုနိုင်မှုသည် Google Sheets နှင့် hosting ဝန်ဆောင်မှုတို့၏ အသုံးပြုမှုပမာဏ ကန့်သတ်ချက်များ၊ ဝန်ဆောင်မှုအခြေအနေနှင့် မူဝါဒအပြောင်းအလဲများအပေါ် မူတည်သည်။ အမ်းသည် ဆိုင်၏ loyalty မှတ်တမ်းများကို စီမံပေးသော tool ဖြစ်ပြီး ငွေပေးချေမှု ဝန်ဆောင်မှု သို့မဟုတ် စာရင်းကိုင်စနစ် မဟုတ်ပါ။</p>
+            </div>
+        </section>
+        <section lang="en" aria-labelledby="terms-english" class="mt-8 space-y-5 border-t border-zinc-200 pt-6 text-sm leading-7 text-zinc-700">
+            <h2 id="terms-english" class="text-base font-semibold text-brand-800">English</h2>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Using Ahm</h3>
+                <p>Ahm is a free community tool that helps shops manage purchases, stamps and reward records in their own Google Sheet.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Shop owner responsibilities</h3>
+                <p>The shop owner is responsible for Sheet sharing, consent to collect and use customer information, reward rules and record backups. Customers should contact their shop directly about record corrections or reward questions.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Staff editing access</h3>
+                <p>Ahm treats every editor of a shop's Google Sheet as a trusted operator. These editors can also view and change the shop's records in Google Sheets, so the shop owner should grant editing access only to people they trust.</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-zinc-900">Service limitations</h3>
+                <p>Ahm's availability depends on Google Sheets and hosting usage limits, service availability and policy changes. Ahm manages shop loyalty records. It does not process payments or replace an accounting system.</p>
+            </div>
+        </section>
     </article>
 }
 else if (page == "member")
