@@ -17,7 +17,7 @@
 
 @if (page is not ("privacy" or "terms"))
 {
-    <div class="mb-5 flex justify-end">
+    <div class="language-bar mb-5 flex justify-end">
         <button type="button" @onclick="ToggleLanguage" class="rounded-lg border border-zinc-200 bg-white px-3 text-xs font-semibold">@(burmese ? "English" : "မြန်မာ")</button>
     </div>
 }
@@ -185,22 +185,23 @@ else if (page == "member")
 }
 else if (page == "setup")
 {
-    <div class="space-y-6">
+    <div class="setup-grid space-y-6">
         <section class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Google Sheets direct</p>
+            <p class="step-label">@T("အဆင့် ၁ · Google ချိတ်ပါ", "Step 1 · Connect Google")</p>
             <h1 class="mt-2 text-xl font-semibold">@T("ဆိုင် Sheet ချိတ်ဆက်ခြင်း", "Connect your shop Sheet")</h1>
             <p class="mt-2 text-sm leading-6 text-zinc-700">@T("Desktop၊ Apps Script၊ database နှင့် cashier PIN မလိုပါ။ Google account ကို ခွင့်ပြုပြီး mobile browser မှ Sheet ကို တိုက်ရိုက်ရွေးပါ။", "No desktop, Apps Script, database or cashier PIN is required. Authorize Google and select the Sheet directly from a mobile browser.")</p>
             @if (!googleConfigured) { <p role="alert" class="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Google public configuration is missing. Set <code>Google:ClientId</code>, <code>Google:ApiKey</code> and <code>Google:AppId</code> before deployment.</p> }
             <div class="mt-4 flex flex-wrap gap-2">
                 <button type="button" disabled="@(!googleConfigured || busy)" @onclick="ConnectGoogle" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@(googleConnected ? T("Google ပြန်ချိတ်မည်", "Reconnect Google") : T("Google ချိတ်မည်", "Connect Google"))</button>
-                @if (googleConnected) { <span class="self-center text-xs font-medium text-brand-700">● @T("ဤ session အတွက် ချိတ်ထားသည်", "Connected for this session")</span> }
+                @if (googleConnected) { <span class="connection-badge">● @T("ဤ session အတွက် ချိတ်ထားသည်", "Connected for this session")</span> }
             </div>
             <p class="mt-3 text-xs text-zinc-600">@T("တောင်းဆိုသည့် scope: Google ၏ official “See, edit, create, and delete only the specific Google Drive files you use with this app” (drive.file). Token ကို browser memory မှာသာ ထားသည်။", "Requested scope: Google's official “See, edit, create, and delete only the specific Google Drive files you use with this app” (drive.file). The token stays in browser memory only.")</p>
         </section>
 
         <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <label class="block text-sm font-medium">@T("ဆိုင်အမည်", "Shop name")<input maxlength="100" @bind="setup.ShopName" placeholder="e.g. Shwe Tea House" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
-            <label class="block text-sm font-medium">@T("ဤဖုန်း၏ ဝန်ထမ်းအမည်", "Staff label on this device")<input maxlength="100" @bind="setup.StaffLabel" placeholder="e.g. Front counter" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+            <div><p class="step-label">@T("အဆင့် ၂ · လုပ်ငန်းကို သတ်မှတ်ပါ", "Step 2 · Set up your business")</p><h2 class="mt-2 text-lg font-semibold">@T("သင့်လုပ်ငန်း မှတ်တမ်းများ", "Your business records")</h2><p class="mt-2 text-sm text-zinc-600">@T("လုပ်ငန်းအသစ်အတွက် Sheet အသစ်ဖန်တီးပါ။ ရှိပြီးသားအတွက် Sheet ရွေးပါ။", "Create a Sheet for a new business, or choose the one your team already uses.")</p></div>
+            <label class="block text-sm font-medium">@T("ဆိုင်အမည်", "Shop name")<input maxlength="100" @bind="setup.ShopName" placeholder="e.g. Your business name" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+            <label class="block text-sm font-medium">@T("ဤဖုန်း၏ ဝန်ထမ်းအမည်", "Your name or counter on this device")<input maxlength="100" @bind="setup.StaffLabel" placeholder="e.g. Front counter" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
             <div class="grid gap-3 sm:grid-cols-2">
                 <button type="button" disabled="@(!googleConnected || busy)" @onclick="CreateShop" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("Ahm Sheet အသစ်ဖန်တီးမည်", "Create new Ahm Sheet")</button>
                 <button type="button" disabled="@(!googleConnected || busy)" @onclick="ConnectExisting" class="rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("ရှိပြီး Sheet ရွေးမည်", "Connect existing Sheet")</button>
@@ -236,7 +237,7 @@ else if (page == "setup")
                     else
                     {
                         <div class="overflow-x-auto rounded-xl border border-zinc-200">
-                            <table aria-label="Reward catalog" class="w-full min-w-[560px] border-collapse text-left text-sm">
+                            <table aria-label="Reward catalog" class="reward-table w-full min-w-[560px] border-collapse text-left text-sm">
                                 <thead class="bg-brand-50 text-xs font-semibold uppercase tracking-wide text-brand-800">
                                     <tr>
                                         <th scope="col" class="px-4 py-3">Reward</th>
@@ -254,12 +255,12 @@ else if (page == "setup")
                                                 @reward.Name
                                                 <span class="mt-0.5 block text-xs font-normal text-zinc-600">@RewardTypeLabel(reward)</span>
                                             </th>
-                                            <td class="px-4 py-3 text-zinc-700">@RewardCatalogValue(reward)</td>
-                                            <td class="px-4 py-3 text-zinc-700">@(reward.StockQuantity is int stock ? Money(stock) : "Unlimited")</td>
-                                            <td class="px-4 py-3">
+                                            <td data-label="Benefit" class="px-4 py-3 text-zinc-700">@RewardCatalogValue(reward)</td>
+                                            <td data-label="Stock" class="px-4 py-3 text-zinc-700">@(reward.StockQuantity is int stock ? Money(stock) : "Unlimited")</td>
+                                            <td data-label="Status" class="px-4 py-3">
                                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold @(reward.Active ? "bg-brand-50 text-brand-800" : "bg-zinc-100 text-zinc-600")">@(reward.Active ? "Active" : "Disabled")</span>
                                             </td>
-                                            <td class="px-4 py-3">
+                                            <td data-label="Actions" class="px-4 py-3">
                                                 <div class="flex justify-end gap-3">
                                                     <button id="@($"edit-reward-{reward.Id}")" type="button" @onclick="() => OpenEditRewardDialog(reward)" class="min-h-0 font-semibold text-brand-700 underline underline-offset-4">Edit</button>
                                                     <button type="button" @onclick="() => DisableReward(reward)" class="min-h-0 font-semibold text-red-800 underline underline-offset-4">@(reward.Active ? "Disable" : "Remove")</button>
@@ -355,14 +356,15 @@ else if (page == "setup")
 }
 else if (page == "cashier")
 {
-    <div class="space-y-6">
+    <div class="cashier-grid space-y-6">
         <section class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Staff workspace</p><h1 class="mt-1 text-xl font-semibold">@(string.IsNullOrWhiteSpace(setup.ShopName) ? "Ahm" : setup.ShopName)</h1></div><button type="button" disabled="@(!googleConfigured || busy)" @onclick="ConnectGoogle" class="rounded-xl border border-zinc-300 px-3 text-sm font-semibold">@(googleConnected ? T("ပြန် sync မည်", "Sync now") : T("Google ပြန်ချိတ်မည်", "Reconnect Google"))</button></div>
             @if (string.IsNullOrWhiteSpace(setup.SpreadsheetId)) { <p class="mt-4 text-sm"><a href="/setup" class="font-semibold underline">@T("ဆိုင် Sheet အရင်ချိတ်ပါ", "Connect a shop Sheet first")</a></p> }
-            else if (!googleConnected) { <p class="mt-3 text-sm text-amber-800">@T("Token သက်တမ်းကုန် သို့မဟုတ် page reload ဖြစ်သည်။ ပြင်ဆင်မှုအားလုံးကို ရပ်ထားပြီး Reconnect Google ကို ကိုယ်တိုင်နှိပ်ရမည်။", "The token expired or the page was reloaded. Mutations are paused until you explicitly reconnect Google.")</p> }
+            else if (!googleConnected) { <p class="mt-3 text-sm text-amber-800">@T("Token သက်တမ်းကုန် သို့မဟုတ် page reload ဖြစ်သည်။ ပြင်ဆင်မှုအားလုံးကို ရပ်ထားပြီး Reconnect Google ကို ကိုယ်တိုင်နှိပ်ရမည်။", "Reconnect Google to find customers and record purchases. This is needed after a reload or when your connection expires.")</p> }
         </section>
-        <section class="space-y-3 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <label class="block text-sm font-medium">@T("ဖုန်းနံပါတ်၊ member token သို့မဟုတ် QR link", "Phone, member token or QR link")<input @bind="lookup" @bind:event="oninput" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
+        <section class="member-search space-y-3 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-semibold">@T("ဖောက်သည် ရှာမည်", "Find a customer")</h2><p class="text-sm text-zinc-600">@T("ဖုန်းနံပါတ် ထည့်ပါ သို့မဟုတ် ဖောက်သည် QR ကို scan လုပ်ပါ။", "Enter their phone number or scan their customer QR.")</p>
+            <label class="block text-sm font-medium">@T("ဖုန်းနံပါတ်၊ member token သို့မဟုတ် QR link", "Phone, member token or QR link")<input autocomplete="off" placeholder="@T("ဖုန်းနံပါတ် သို့မဟုတ် QR link", "Phone number or QR link")" @bind="lookup" @bind:event="oninput" class="mt-1 h-11 w-full rounded-xl border border-zinc-200 px-3" /></label>
             <div class="flex flex-wrap gap-2"><button type="button" disabled="@(!googleConnected || busy)" @onclick="FindMember" class="rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("Member ရှာမည်", "Find member")</button><button type="button" disabled="@(!googleConnected || busy)" @onclick="ScanQr" class="rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("QR scan မည်", "Scan QR")</button></div>
         </section>
         @if (showEnroll)
@@ -392,9 +394,29 @@ else if (page == "cashier")
 }
 else
 {
-    <div class="space-y-6">
-        <section class="rounded-2xl border border-zinc-200 bg-white p-7 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wider text-brand-700">Ahm (အမ်း) · Free · browser-direct · Google Sheets</p><h1 class="mt-2 text-2xl font-semibold"><span class="block">Ahm</span><span class="mt-1 block text-lg">@T("ဆိုင်ဝန်ထမ်းများအတွက် ရိုးရှင်းသော loyalty workspace", "A simple loyalty workspace for shop staff")</span></h1><p class="mt-3 text-sm leading-7 text-zinc-700">@T("အမ်း (Ahm) သည် ဆိုင်ပိုင်ရှင်နှင့် ခွင့်ပြုထားသော ဝန်ထမ်းများက ဝယ်ယူမှု၊ stamp၊ cashback နှင့် reward မှတ်တမ်းများကို ဆိုင်ပိုင် Google Sheet ထဲတွင် စီမံရန် ကူညီသည်။ ဤ homepage ကို Google login မဝင်ဘဲ ကြည့်နိုင်သည်။", "Ahm helps shop owners and authorised staff record purchases, stamps, cashback and rewards in a Google Sheet owned by the shop. This public homepage is available without signing in.")</p><p class="mt-3 text-sm leading-7 text-zinc-700">@T("Google ကို ချိတ်ဆက်ရန် ရွေးချယ်ပါက အမ်းသည် သင်ရွေးထားသော သို့မဟုတ် အမ်းနှင့်အတူ ဖန်တီးထားသော Google Drive file များကိုသာ ဖန်တီး၊ ဖွင့်နှင့် ပြင်ဆင်ရန် drive.file ခွင့်ပြုချက်ကို တောင်းသည်။ Drive တစ်ခုလုံးကို ကြည့်ရန် မတောင်းပါ။", "When a user chooses to connect Google, Ahm requests the drive.file permission so the browser can create, open and update only files created with or selected for Ahm. It does not request access to the user's entire Drive.")</p><div class="mt-5 flex flex-wrap gap-3"><a href="/setup" class="inline-flex min-h-11 items-center rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white">@T("ဆိုင်ချိတ်ဆက်မည်", "Connect a shop")</a><a href="/cashier" class="inline-flex min-h-11 items-center rounded-xl border border-zinc-300 px-4 text-sm font-semibold">@T("Staff workspace", "Staff workspace")</a><a href="/privacy" class="inline-flex min-h-11 items-center text-sm font-semibold text-brand-700 underline">@T("ကိုယ်ရေးအချက်အလက် မူဝါဒ", "Privacy Policy")</a></div></section>
-        <section class="grid gap-3 sm:grid-cols-3"><div class="rounded-xl border border-zinc-200 bg-white p-4"><p class="font-semibold">No Apps Script</p><p class="mt-1 text-xs text-zinc-600">Create or choose a Sheet from mobile.</p></div><div class="rounded-xl border border-zinc-200 bg-white p-4"><p class="font-semibold">No Ahm database</p><p class="mt-1 text-xs text-zinc-600">Your Sheet remains the data store.</p></div><div class="rounded-xl border border-zinc-200 bg-white p-4"><p class="font-semibold">Staff-only details</p><p class="mt-1 text-xs text-zinc-600">Customer links reveal no private balance.</p></div></section>
+    <div class="home-page">
+        <section class="home-hero">
+            <div class="hero-copy">
+                <span class="intro-badge">@T("သင့်လုပ်ငန်းအတွက် အခမဲ့", "Free for your business")</span>
+                <h1>@T("ဖောက်သည် ပြန်လာတိုင်း ဆုချီးမြှင့်ပါ။", "Make every return visit rewarding.")</h1>
+                <p class="hero-description">@T("ဝယ်ယူမှု၊ stamp၊ cashback နှင့် ဆုလက်ဆောင်များကို တစ်နေရာတည်းတွင် လွယ်ကူစွာ စီမံပါ။", "Purchases, stamps, cashback and rewards. One simple workspace for you and your team.")</p>
+                <div class="hero-actions"><a href="/setup" class="primary-link">@T("ဆိုင်ချိတ်ဆက်မည်", "Connect a shop") <span aria-hidden="true">↗</span></a><a href="/cashier" class="secondary-link">@T("ဝန်ထမ်း workspace", "Staff workspace")</a></div>
+                <p class="hero-note">@T("ဖုန်း၊ tablet နှင့် computer မှ အသုံးပြုနိုင်သည်။", "At the counter, on your phone, or at your desk.")</p>
+            </div>
+            <aside class="hero-guide" aria-labelledby="guide-title">
+                <div class="guide-heading"><img src="/logo.svg" alt="" width="48" height="48" /><span>@T("ရိုးရှင်းသော နေ့စဉ်လုပ်ငန်း", "A simpler day at work")</span></div>
+                <h2 id="guide-title">@T("ဖောက်သည်ကို ဆုချီးမြှင့်ရန်", "From purchase to reward")</h2>
+                <ol class="guide-steps">
+                    <li><span class="step-number">1</span><div><h3>@T("ဖောက်သည် ရှာပါ", "Find your customer")</h3><p>@T("ဖုန်းနံပါတ် သို့မဟုတ် QR ဖြင့် ရှာပါ။", "Use a phone number or scan their QR.")</p></div></li>
+                    <li><span class="step-number">2</span><div><h3>@T("ဝယ်ယူမှု မှတ်တမ်းတင်ပါ", "Record the purchase")</h3><p>@T("ဝယ်ယူသည့် ပမာဏ ထည့်ပါ။", "Enter the bill amount. Stamps are calculated for you.")</p></div></li>
+                    <li><span class="step-number">3</span><div><h3>@T("ဆုလက်ဆောင် ပေးပါ", "Give a little back")</h3><p>@T("ရနိုင်သော reward သို့မဟုတ် cashback ကို ပေးပါ။", "Choose an available reward or pay cashback.")</p></div></li>
+                </ol>
+                <div class="guide-footnote">@T("သင့်လုပ်ငန်း၏ Google Sheet တွင် သိမ်းသည်။", "Your records stay in your Google Sheet.")</div>
+            </aside>
+        </section>
+        <section class="business-section"><h2>@T("သင့်လုပ်ငန်းနှင့် အံဝင်ခွင်ကျ", "Your business. Your way to say thank you.")</h2><p>@T("ဆိုင်၊ ဝန်ဆောင်မှုနှင့် လုပ်ငန်းအမျိုးမျိုးအတွက် ဆုလက်ဆောင်ကို စိတ်ကြိုက်သတ်မှတ်ပါ။", "For shops, services and everyday businesses. Set the rewards that make sense for your customers.")</p><div class="business-tags"><span>@T("လက်လီဆိုင်", "Retail")</span><span>@T("စားသောက်ဆိုင်", "Food & drink")</span><span>@T("အလှအပ", "Beauty & wellness")</span><span>@T("ဝန်ဆောင်မှု", "Services")</span><span>@T("သင့်လုပ်ငန်း", "And your business")</span></div></section>
+        <section class="ownership-section"><div><h2>@T("သင့်မှတ်တမ်းများကို သင်ပိုင်သည်။", "You own your customer records.")</h2><p>@T("သင့်အဖွဲ့က သင့် Google Sheet တွင် အလုပ်လုပ်သည်။ ဖောက်သည် QR သည် ကိုယ်ရေးအချက်အလက်ကို မပြသပါ။", "Your team works directly with your Google Sheet. Customer QR links keep personal details and balances private.")</p></div><div class="data-disclosure"><p class="mt-3 text-sm leading-7 text-zinc-700">@T("Google ကို ချိတ်ဆက်ရန် ရွေးချယ်ပါက အမ်းသည် သင်ရွေးထားသော သို့မဟုတ် အမ်းနှင့်အတူ ဖန်တီးထားသော Google Drive file များကိုသာ ဖန်တီး၊ ဖွင့်နှင့် ပြင်ဆင်ရန် drive.file ခွင့်ပြုချက်ကို တောင်းသည်။ Drive တစ်ခုလုံးကို ကြည့်ရန် မတောင်းပါ။", "When a user chooses to connect Google, Ahm requests the drive.file permission so the browser can create, open and update only files created with or selected for Ahm. It does not request access to the user's entire Drive.")</p><a href="/privacy" class="inline-flex min-h-11 items-center text-sm font-semibold text-brand-700 underline">@T("ကိုယ်ရေးအချက်အလက် မူဝါဒ", "Privacy Policy")</a></div></section>
         <section class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"><h2 class="text-lg font-semibold">@T("Google data ကို အမ်းက ဘယ်လိုသုံးသလဲ", "How Ahm uses Google data")</h2><p class="mt-2 text-sm leading-7 text-zinc-700">@T("Google user data ကို အမ်း၏ မြင်ရသော loyalty လုပ်ဆောင်ချက်များအတွက်သာ အသုံးပြုသည်။ ကြော်ငြာ၊ credit ဆုံးဖြတ်ချက်၊ data ရောင်းချခြင်း၊ AI/ML လေ့ကျင့်ခြင်း၊ သဘောတူညီချက်မရှိသော အနီးကပ်ရုပ်ပုံ (non-consensual intimate imagery) များကို AI ဖြင့် ဖန်တီးခြင်း သို့မဟုတ် ကိုင်တွယ်ခြင်းအတွက် မသုံးပါ။", "Google user data is used only for Ahm's visible loyalty features. It is not sold, used for advertising or credit decisions, used to train AI/ML models, or used to generate or process intimate imagery.")</p></section>
+
     </div>
 }

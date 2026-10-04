@@ -4,30 +4,30 @@
 
 @{ var currentUri = new Uri(Nav.Uri); var isMemberPage = currentUri.AbsolutePath.Equals("/member", StringComparison.OrdinalIgnoreCase); }
 
-<div class="min-h-screen flex flex-col">
+<div class="app-shell min-h-dvh flex flex-col">
     <a href="@(currentUri.PathAndQuery + "#main-content")" @onclick="SkipToMain" @onclick:preventDefault class="skip-link">Skip to main content</a>
-    <header class="sticky top-0 z-30 w-full border-b border-brand-100 bg-white/90 backdrop-blur-md">
-        <div class="mx-auto flex min-h-14 max-w-2xl flex-wrap items-center justify-between gap-3 px-5 py-2">
+    <header class="site-header sticky top-0 z-30 w-full border-b border-brand-100 bg-white">
+        <div class="mx-auto flex min-h-20 max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-2">
             @if (isMemberPage)
             {
-                <div class="flex items-center gap-2.5"><img src="/logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><span lang="my" class="text-sm font-semibold tracking-tight text-brand-900">အမ်း</span></div>
+                <div class="flex items-center gap-2.5"><img src="/logo.svg" alt="" width="40" height="40" class="h-10 w-10" /><span class="brand-name">Ahm <span lang="my">အမ်း</span></span></div>
             }
             else
             {
-                <a href="/" aria-label="Ahm home" class="flex items-center gap-2.5 no-underline"><img src="/logo.svg" alt="" width="32" height="32" class="h-8 w-8" /><span lang="my" class="text-sm font-semibold tracking-tight text-brand-900">အမ်း</span></a>
+                <a href="/" aria-label="Ahm home" class="flex items-center gap-2.5 no-underline"><img src="/logo.svg" alt="" width="40" height="40" class="h-10 w-10" /><span class="brand-name">Ahm <span lang="my">အမ်း</span></span></a>
             }
             @if (!isMemberPage)
             {
-            <nav aria-label="Main navigation" class="flex rounded-xl border border-brand-100 bg-brand-50 p-0.5 text-sm">
-                <NavLink href="/" Match="NavLinkMatch.All" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Home</NavLink>
-                <NavLink href="/cashier" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Staff</NavLink>
-                <NavLink href="/setup" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="bg-white font-semibold text-brand-800 shadow-sm">Setup</NavLink>
+            <nav aria-label="Main navigation" class="main-nav">
+                <NavLink href="/" Match="NavLinkMatch.All" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="nav-active">Home</NavLink>
+                <NavLink href="/cashier" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="nav-active">Staff workspace</NavLink>
+                <NavLink href="/setup" class="flex min-h-11 items-center rounded-lg px-3 text-zinc-700" ActiveClass="nav-active">Business setup</NavLink>
             </nav>
             }
         </div>
     </header>
-    <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-5">@Body</main>
-    <footer class="border-t border-brand-100 px-4 py-4 text-center text-sm text-brand-800"><span lang="my">အမ်း</span> (Ahm) · Staff-assisted shop rewards · <a href="/privacy" class="underline">Privacy</a> · <a href="/terms" class="underline">Terms</a></footer>
+    <main id="main-content" tabindex="-1" class="site-main mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-5">@Body</main>
+    <footer class="border-t border-brand-100 px-4 py-4 text-center text-sm text-brand-800"><span lang="my">အမ်း</span> (Ahm) · Rewards for your business · <a href="/privacy" class="underline">Privacy</a> · <a href="/terms" class="underline">Terms</a></footer>
 </div>
 
 @code {
